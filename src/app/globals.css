@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* Force dark readable text inside all input, textarea, select fields */
+input, select, textarea {
+  color: #0f172a !important; /* Slate 900 */
+  background-color: #ffffff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #94a3b8 !important; /* Slate 400 */
+}
+
+/* Enforce Inter font for all preview & print form pages */
+.print-page, .print-page * {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+@layer utilities {
+  .page-number-tag {
+    @apply absolute bottom-3 right-4 text-[10px] font-mono font-semibold text-slate-400 select-none;
+  }
+}
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    padding: 12mm 15mm !important;
+    page-break-after: always !important;
+    page-break-inside: avoid !important;
+    border-radius: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto !important;
+  }
+
+  .page-number-tag {
+    display: block !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
