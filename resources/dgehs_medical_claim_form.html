@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DGEHS Medical Claim Form</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="ratelist.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: { DEFAULT:'#0b5fa5', dark:'#094c85', light:'#eaf2fa' }
+        },
+        fontFamily: {
+          serif: ['"Times New Roman"','Georgia','serif'],
+          sans: ['Inter','Arial','Helvetica','sans-serif']
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body{ font-family:"Times New Roman", Georgia, serif; }
+  .font-ui{ font-family: Inter, Arial, Helvetica, sans-serif; }
+
+  /* ---------- pretty date inputs ---------- */
+  input[type=date]{
+    position:relative;
+    background:#fff;
+    color:#1a1a1a;
+    -webkit-appearance:none;
+    appearance:none;
+  }
+  input[type=date]::-webkit-calendar-picker-indicator{
+    cursor:pointer;
+    padding:5px;
+    margin-right:-2px;
+    border-radius:6px;
+    background-color:#0b5fa5;
+    filter:invert(1) brightness(1.6);
+    transition:transform .15s ease, background-color .15s ease;
+  }
+  input[type=date]::-webkit-calendar-picker-indicator:hover{
+    transform:scale(1.1);
+  }
+  input[type=date]:focus::-webkit-calendar-picker-indicator{
+    filter:invert(1) brightness(1.6);
+  }
+  input[type=date]::-webkit-datetime-edit{ font-family:"Times New Roman", Georgia, serif; }
+  input[type=date]::-webkit-inner-spin-button{ display:none; }
+
+  /* charge / calc table input focus */
+  table input:focus{ outline:2px solid #0b5fa5; outline-offset:-2px; background:#f7fbff; }
+
+  #preview-wrap{ display:none; }
+
+  .p-row{ display:flex; margin:9px 0; }
+  .p-row .p-label{ flex:0 0 62%; }
+  .p-row .p-value{ flex:1; border-bottom:1px dotted #999; padding-left:6px; min-height:16px; }
+
+  @media print{
+    body{ background:#fff !important; padding:0; margin:0; }
+    .no-print{ display:none !important; }
+    #form-wrap{ display:none !important; }
+    #preview-wrap{ display:block !important; }
+    .page{
+      box-shadow:none !important; border:none !important; margin:0 !important; max-width:none !important; width:auto !important;
+      padding:14mm 16mm !important;
+      page-break-after:always;
+      border-radius:0 !important;
+    }
+    .page:last-child{ page-break-after:auto; }
+    @page{ size:A4; margin:0; }
+  }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-900">
+<div class="max-w-4xl mx-auto p-6">
+
+  <div class="font-ui flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold text-brand">DGEHS Medical Claim Form</h1>
+    <span id="step-label" class="text-xs font-semibold text-brand bg-brand-light px-3 py-1 rounded-full">Step 1 of 2 — Fill Details</span>
+  </div>
+
+  <!-- ============ FORM ============ -->
+  <div id="form-wrap">
+
+    <!-- Tab Navigation Header -->
+    <div class="font-ui bg-white border border-slate-200 rounded-xl shadow-sm p-2 mb-6 flex flex-col sm:flex-row gap-2 text-xs md:text-sm font-semibold">
+      <button id="tab-btn-1" onclick="switchTab(1)" class="tab-btn flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all border border-brand bg-brand text-white shadow-sm">
+        <span class="w-6 h-6 rounded-full bg-white/20 text-white flex items-center justify-center text-xs font-bold">1</span>
+        <span>Section 1: Check List</span>
+      </button>
+      <button id="tab-btn-2" onclick="switchTab(2)" class="tab-btn flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all border border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+        <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold">2</span>
+        <span>Section 2: Medical 2004 Form</span>
+      </button>
+      <button id="tab-btn-3" onclick="switchTab(3)" class="tab-btn flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all border border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+        <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold">3</span>
+        <span>Section 3: Bill &amp; Calculation Sheet</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: Annexure-I -->
+    <div id="tab-section-1" class="tab-section bg-white border border-slate-200 rounded-xl shadow-sm p-7 mb-6">
+      <h2 class="font-ui text-sm font-bold tracking-wide uppercase text-brand border-b-2 border-brand pb-2 mb-5">Annexure-I — Check List for Reimbursement</h2>
+
+      <div class="flex flex-wrap gap-4 mb-4">
+        <div class="flex-1 min-w-[220px]">
+          <label class="font-ui block text-xs text-slate-600 mb-1">1. DGEHS Card No. &amp; place of issue</label>
+          <input id="a_card_no" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand">
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-4 mb-4">
+        <div class="flex-1 min-w-[220px]">
+          <label class="font-ui block text-xs text-slate-600 mb-1">2a. Validity of DGEHS Card — From</label>
+          <input id="a_valid_from" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand">
+        </div>
+        <div class="flex-1 min-w-[220px]">
+          <label class="font-ui block text-xs text-slate-600 mb-1">2b. Validity of DGEHS Card — To</label>
+          <input id="a_valid_to" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand">
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="font-ui block text-xs text-slate-600 mb-1">Entitlement</label>
+        <div class="font-ui flex flex-wrap gap-4 text-sm">
+          <label class="flex items-center gap-1.5"><input type="radio" name="a_entitlement" value="Pvt." class="accent-brand"> Pvt.</label>
+          <label class="flex items-center gap-1.5"><input type="radio" name="a_entitlement" value="Semi Pvt." class="accent-brand"> Semi Pvt.</label>
+          <label class="flex items-center gap-1.5"><input type="radio" name="a_entitlement" value="General" class="accent-brand"> General</label>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="font-ui block text-xs text-slate-600 mb-1">3. Full name of Card Holder (Block Letters)</label>
+        <input id="a_name" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand">
+      </div>
+      <div class="mb-5">
+        <label class="font-ui block text-xs text-slate-600 mb-1">4. Status</label>
+        <div class="font-ui flex flex-wrap gap-4 text-sm">
+          <label class="flex items-center gap-1.5"><input type="radio" name="a_status" value="Govt. Servant" class="accent-brand"> Govt. Servant</label>
+          <label class="flex items-center gap-1.5"><input type="radio" name="a_status" value="Pensioner" class="accent-brand"> Pensioner</label>
+          <label class="flex items-center gap-1.5"><input type="radio" name="a_status" value="Other" class="accent-brand"> Other</label>
+        </div>
+      </div>
+
+      <h3 class="font-ui text-sm font-semibold text-slate-700 mt-5 mb-2">5. The following documents are submitted</h3>
+      <div class="divide-y divide-dashed divide-slate-200">
+        <div class="flex items-center justify-between gap-3 py-2"><span>(a) Medical 2004 Form</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_a" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_a" value="No" class="accent-brand">No</label></div></div>
+        <div class="flex items-center justify-between gap-3 py-2"><span>(b) Photocopy of CGHS card</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_b" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_b" value="No" class="accent-brand">No</label></div></div>
+        <div class="flex items-center justify-between gap-3 py-2"><span>(c) No. of Original Bills</span>
+          <input id="d_c" type="text" class="w-28 rounded-lg border border-slate-300 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex items-center justify-between gap-3 py-2"><span>(d) Copy of discharge summary</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_d" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_d" value="No" class="accent-brand">No</label></div></div>
+        <div class="flex items-center justify-between gap-3 py-2"><span>(e) Copy of referral Specialist/CMO</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_e" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_e" value="No" class="accent-brand">No</label></div></div>
+        <div class="flex items-center justify-between gap-3 py-2"><span>(f) Hospital given breakup for lab investigations</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_f" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_f" value="No" class="accent-brand">No</label></div></div>
+      </div>
+
+      <div class="ml-4 pl-3 border-l-2 border-slate-100 mt-3">
+        <div class="font-ui text-xs text-slate-500 mb-1">(g) If original papers lost, following submitted—</div>
+        <div class="flex items-center justify-between gap-3 py-2 border-b border-dashed border-slate-200"><span>I. Photocopies of claim papers</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_g1" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_g1" value="No" class="accent-brand">No</label></div></div>
+        <div class="flex items-center justify-between gap-3 py-2"><span>II. Affidavit on Stamp Paper</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_g2" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_g2" value="No" class="accent-brand">No</label></div></div>
+      </div>
+
+      <div class="ml-4 pl-3 border-l-2 border-slate-100 mt-3">
+        <div class="font-ui text-xs text-slate-500 mb-1">(h) In case of death of card holder, following submitted—</div>
+        <div class="flex items-center justify-between gap-3 py-2 border-b border-dashed border-slate-200"><span>I. Affidavit on Stamp paper by Claimant</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_h1" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_h1" value="No" class="accent-brand">No</label></div></div>
+        <div class="flex items-center justify-between gap-3 py-2 border-b border-dashed border-slate-200"><span>II. No objection from other legal heirs</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_h2" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_h2" value="No" class="accent-brand">No</label></div></div>
+        <div class="flex items-center justify-between gap-3 py-2"><span>III. Copy of death certificate</span>
+          <div class="font-ui flex gap-3 text-sm"><label class="flex items-center gap-1"><input type="radio" name="d_h3" value="Yes" class="accent-brand">Yes</label><label class="flex items-center gap-1"><input type="radio" name="d_h3" value="No" class="accent-brand">No</label></div></div>
+      </div>
+
+      <h3 class="font-ui text-sm font-semibold text-slate-700 mt-6 mb-2">Contact &amp; Bank Details</h3>
+      <div class="flex flex-wrap gap-4 mb-4">
+        <div class="flex-1 min-w-[180px]"><label class="font-ui block text-xs text-slate-600 mb-1">Dated</label><input id="a_dated" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[180px]"><label class="font-ui block text-xs text-slate-600 mb-1">Tel. No. (O)</label><input id="a_tel_o" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[180px]"><label class="font-ui block text-xs text-slate-600 mb-1">Tel. No. (R)</label><input id="a_tel_r" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+      <div class="mb-4">
+        <label class="font-ui block text-xs text-slate-600 mb-1">E-Mail Address</label>
+        <input id="a_email" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand">
+      </div>
+      <div class="flex flex-wrap gap-4 mb-4">
+        <div class="flex-1 min-w-[180px]"><label class="font-ui block text-xs text-slate-600 mb-1">Name of the Bank</label><input id="a_bank" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[180px]"><label class="font-ui block text-xs text-slate-600 mb-1">Branch</label><input id="a_branch" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[180px]"><label class="font-ui block text-xs text-slate-600 mb-1">SB A/C No.</label><input id="a_sbac" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+      <div class="flex flex-wrap gap-4">
+        <div class="flex-1 min-w-[180px]"><label class="font-ui block text-xs text-slate-600 mb-1">Branch MICR Code</label><input id="a_micr" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[180px]"><label class="font-ui block text-xs text-slate-600 mb-1">Tel. No. of Bank Branch</label><input id="a_bank_tel" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+
+      <div class="font-ui flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
+        <button class="border border-slate-300 text-slate-600 hover:bg-slate-50 font-semibold px-4 py-2.5 rounded-lg text-xs" onclick="showPreview()">Preview Form →</button>
+        <button class="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2.5 rounded-lg shadow-sm text-sm" onclick="switchTab(2)">Next: Medical 2004 Form →</button>
+      </div>
+    </div>
+
+    <!-- TAB 2: Medical 2004 Form -->
+    <div id="tab-section-2" class="tab-section hidden bg-white border border-slate-200 rounded-xl shadow-sm p-7 mb-6">
+      <h2 class="font-ui text-sm font-bold tracking-wide uppercase text-brand border-b-2 border-brand pb-2 mb-5">Medical 2004 Form — Reimbursement of Medical Claims</h2>
+
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">Computer No.</label><input id="b_computer_no" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">1. DGEHS Card No. &amp; Place of issue</label><input id="b_card_no" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      <div class="flex flex-wrap gap-4 mb-4">
+        <div class="flex-1 min-w-[220px]"><label class="font-ui block text-xs text-slate-600 mb-1">2a. Validity of DGEHS Card — From</label><input id="b_valid_from" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[220px]"><label class="font-ui block text-xs text-slate-600 mb-1">2b. Validity of DGEHS Card — To</label><input id="b_valid_to" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+      <div class="mb-4">
+        <label class="font-ui block text-xs text-slate-600 mb-1">3. Ward entitlement</label>
+        <div class="font-ui flex flex-wrap gap-4 text-sm">
+          <label class="flex items-center gap-1.5"><input type="radio" name="b_ward" value="Pvt." class="accent-brand"> Pvt.</label>
+          <label class="flex items-center gap-1.5"><input type="radio" name="b_ward" value="Semi Pvt." class="accent-brand"> Semi Pvt.</label>
+          <label class="flex items-center gap-1.5"><input type="radio" name="b_ward" value="General" class="accent-brand"> General</label>
+        </div>
+      </div>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">4. Full name of card holder (Block Letters)</label><input id="b_name" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">5. Full address</label><textarea id="b_address" class="w-full rounded-lg border border-slate-300 px-3 py-2 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-brand"></textarea></div>
+      <div class="flex flex-wrap gap-4 mb-4">
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">6. Telephone (O)</label><input id="b_tel_o" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">Telephone (R)</label><input id="b_tel_r" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">Telephone (M)</label><input id="b_tel_m" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">7. E-mail address</label><input id="b_email" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      <div class="flex flex-wrap gap-4 mb-4">
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">8. Name of the Bank</label><input id="b_bank" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">Branch</label><input id="b_branch" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">SB A/C</label><input id="b_sbac" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+      <div class="flex flex-wrap gap-4 mb-4">
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">Branch MICR Code</label><input id="b_micr" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">IFC Code</label><input id="b_ifc" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">Tel. No. of Bank Branch</label><input id="b_bank_tel" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">9. Name of patient &amp; relationship with card holder</label><input id="b_patient" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">10. Basic Pay (excluding Grade Pay)</label><input id="b_basic_pay" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">11(a). Name &amp; Address of Hospital — OPD treatment/investigations</label><textarea id="b_hosp_opd" class="w-full rounded-lg border border-slate-300 px-3 py-2 min-h-[50px] focus:outline-none focus:ring-2 focus:ring-brand"></textarea></div>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">11(b). Name &amp; Address of Hospital — Indoor Treatment</label><textarea id="b_hosp_indoor" class="w-full rounded-lg border border-slate-300 px-3 py-2 min-h-[50px] focus:outline-none focus:ring-2 focus:ring-brand"></textarea></div>
+      <div class="flex flex-wrap gap-4 mb-5">
+        <div class="flex-1 min-w-[200px]"><label class="font-ui block text-xs text-slate-600 mb-1">12. Date of admission (Indoor only)</label><input id="b_admission" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[200px]"><label class="font-ui block text-xs text-slate-600 mb-1">Date of discharge (Indoor only)</label><input id="b_discharge" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+
+      <h3 class="font-ui text-sm font-semibold text-slate-700 mb-2">13. Charges Claimed</h3>
+      <div class="overflow-x-auto mb-5">
+        <table class="w-full border-collapse text-sm">
+          <thead><tr class="font-ui bg-brand-light text-slate-700">
+            <th class="border border-slate-300 p-2"></th>
+            <th class="border border-slate-300 p-2">Total Claimed</th>
+            <th class="border border-slate-300 p-2">Consultation</th>
+            <th class="border border-slate-300 p-2">Investigation</th>
+            <th class="border border-slate-300 p-2">Medicine</th>
+            <th class="border border-slate-300 p-2">Other</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="border border-slate-300 p-2 font-semibold">OPD Treatment</td>
+              <td class="border border-slate-300 p-1"><input id="c_opd_total" class="w-full p-1.5 rounded"></td>
+              <td class="border border-slate-300 p-1"><input id="c_opd_consult" class="w-full p-1.5 rounded"></td>
+              <td class="border border-slate-300 p-1"><input id="c_opd_invest" class="w-full p-1.5 rounded"></td>
+              <td class="border border-slate-300 p-1"><input id="c_opd_med" class="w-full p-1.5 rounded"></td>
+              <td class="border border-slate-300 p-1"><input id="c_opd_other" class="w-full p-1.5 rounded"></td></tr>
+            <tr><td class="border border-slate-300 p-2 font-semibold">Indoor Treatment</td>
+              <td class="border border-slate-300 p-1"><input id="c_ind_total" class="w-full p-1.5 rounded"></td>
+              <td class="border border-slate-300 p-1"><input id="c_ind_consult" class="w-full p-1.5 rounded"></td>
+              <td class="border border-slate-300 p-1"><input id="c_ind_invest" class="w-full p-1.5 rounded"></td>
+              <td class="border border-slate-300 p-1"><input id="c_ind_med" class="w-full p-1.5 rounded"></td>
+              <td class="border border-slate-300 p-1"><input id="c_ind_other" class="w-full p-1.5 rounded"></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">14. Details of Referral</label><textarea id="b_referral" class="w-full rounded-lg border border-slate-300 px-3 py-2 min-h-[50px] focus:outline-none focus:ring-2 focus:ring-brand"></textarea></div>
+      <div class="mb-6"><label class="font-ui block text-xs text-slate-600 mb-1">15. Details of Medical advance, if any</label><textarea id="b_advance" class="w-full rounded-lg border border-slate-300 px-3 py-2 min-h-[50px] focus:outline-none focus:ring-2 focus:ring-brand"></textarea></div>
+
+      <h3 class="font-ui text-sm font-semibold text-slate-700 mb-2 border-t border-slate-200 pt-5">Declaration</h3>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">Dated (Declaration)</label><input id="e_decl_date" type="date" class="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+
+      <div class="font-ui flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
+        <button class="border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold px-5 py-2.5 rounded-lg text-sm" onclick="switchTab(1)">← Back: Check List</button>
+        <button class="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2.5 rounded-lg shadow-sm text-sm" onclick="switchTab(3)">Next: Calculation Sheet →</button>
+      </div>
+    </div>
+
+    <!-- TAB 3: Bill Details & Calculation Sheet -->
+    <div id="tab-section-3" class="tab-section hidden bg-white border border-slate-200 rounded-xl shadow-sm p-7 mb-6">
+      <h2 class="font-ui text-sm font-bold tracking-wide uppercase text-brand border-b-2 border-brand pb-2 mb-5">Bill Details &amp; Calculation Sheet</h2>
+
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">Medical Re-Imbursement bill in R/o</label><input id="e_bill_ro" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      <div class="mb-4"><label class="font-ui block text-xs text-slate-600 mb-1">Name of the Treating Hospital</label><input id="e_treating_hosp" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      <div class="mb-5">
+        <label class="font-ui block text-xs text-slate-600 mb-1">Whether Govt./Panel/Pvt. Hospital</label>
+        <div class="font-ui flex flex-wrap gap-4 text-sm">
+          <label class="flex items-center gap-1.5"><input type="radio" name="e_hosp_type" value="Govt." class="accent-brand"> Govt.</label>
+          <label class="flex items-center gap-1.5"><input type="radio" name="e_hosp_type" value="Panel" class="accent-brand"> Panel</label>
+          <label class="flex items-center gap-1.5"><input type="radio" name="e_hosp_type" value="Pvt." class="accent-brand"> Pvt.</label>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-4 mb-5">
+        <div class="flex-1 min-w-[200px]"><label class="font-ui block text-xs text-slate-600 mb-1">Period of Treatment — From</label><input id="e_period_from" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[200px]"><label class="font-ui block text-xs text-slate-600 mb-1">Period of Treatment — To</label><input id="e_period_to" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+
+      <h3 class="font-ui text-sm font-semibold text-slate-700 mb-2">Calculation Sheet</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse text-xs min-w-[760px]" id="calc-table">
+          <thead>
+            <tr class="font-ui bg-brand-light text-slate-700">
+              <th class="border border-slate-300 p-2 w-[5%]">S.No.</th>
+              <th class="border border-slate-300 p-2 w-[24%]">Name of Treatment/Investigation</th>
+              <th class="border border-slate-300 p-2 w-[13%]">Treatment DGEHS Code</th>
+              <th class="border border-slate-300 p-2 w-[14%]">Rate Charged by Hospital</th>
+              <th class="border border-slate-300 p-2 w-[14%]">DGEHS Approved Rates</th>
+              <th class="border border-slate-300 p-2 w-[14%]">Restricted claim</th>
+              <th class="border border-slate-300 p-2 w-[16%]">Remarks</th>
+            </tr>
+          </thead>
+          <tbody id="calc-tbody"></tbody>
+        </table>
+      </div>
+      <div class="font-ui flex gap-2 mt-3">
+        <button class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg" onclick="addCalcRow()">+ Add Row</button>
+        <button class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg" onclick="removeCalcRow()">− Remove Last Row</button>
+      </div>
+      <p class="font-ui text-xs text-slate-500 mt-2">Tip: keep to around 6 rows so the printed Calculation Sheet fits neatly on one page.</p>
+
+      <h3 class="font-ui text-sm font-semibold text-slate-700 mt-6 mb-2">Signatures</h3>
+      <div class="flex flex-wrap gap-4">
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">DDO</label><input id="e_ddo" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">HOS</label><input id="e_hos" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+        <div class="flex-1 min-w-[160px]"><label class="font-ui block text-xs text-slate-600 mb-1">Applicant Signature</label><input id="e_applicant_sig" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand"></div>
+      </div>
+
+      <div class="font-ui flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
+        <button class="border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold px-5 py-2.5 rounded-lg text-sm" onclick="switchTab(2)">← Back: Medical 2004 Form</button>
+        <button class="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2.5 rounded-lg shadow-sm text-sm" onclick="showPreview()">Preview Filled Form →</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ PREVIEW ============ -->
+  <div id="preview-wrap">
+    <div class="no-print font-ui flex justify-between items-center mb-4">
+      <button class="border border-brand text-brand font-semibold px-4 py-2 rounded-lg hover:bg-brand-light" onclick="showForm()">← Edit</button>
+      <button class="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2.5 rounded-lg shadow-sm" onclick="window.print()">🖨️ Print / Save as PDF (3 pages)</button>
+    </div>
+
+    <!-- PAGE 1 -->
+    <div class="page bg-white border border-slate-200 rounded-xl shadow-sm max-w-3xl mx-auto mb-7 px-14 py-11 text-[13.5px] leading-relaxed">
+      <div class="text-right font-bold mb-1">ANNEXURE-I</div>
+      <div class="text-center font-bold underline">DELHI GOVERNMENT EMPLOYEES HEALTH SCHEME</div>
+      <div class="text-center font-bold underline mb-3">MODIFIED CHECK LIST FOR REIMBURSEMENT OF MEDICAL CLAIMS</div>
+
+      <div class="p-row"><div class="p-label">1. DGEHS Card No. and place of issue</div><div class="p-value" id="pv_a_card_no"></div></div>
+      <div class="p-row"><div class="p-label">2. Validity of DGEHS Card (for pensioners) &amp; Entitlement</div><div class="p-value" id="pv_a_valid"></div></div>
+      <div class="p-row"><div class="p-label"></div><div class="p-value" id="pv_a_entitlement"></div></div>
+      <div class="p-row"><div class="p-label">3. Full name of Card Holder (Block Letters)</div><div class="p-value" id="pv_a_name"></div></div>
+      <div class="p-row"><div class="p-label">4. Status (Govt. Servant/Pensioner/Other)</div><div class="p-value" id="pv_a_status"></div></div>
+
+      <div class="mt-3 font-bold">5. The following documents are submitted:</div>
+      <table class="w-full border-collapse my-2 text-[12.5px]">
+        <tr><td class="border border-slate-400 p-1.5">(a) Medical 2004 Form</td><td class="border border-slate-400 p-1.5" id="pv_d_a"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(b) Photocopy of CGHS card</td><td class="border border-slate-400 p-1.5" id="pv_d_b"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(c) No. of Original Bills</td><td class="border border-slate-400 p-1.5" id="pv_d_c"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(d) Copy of discharge summary</td><td class="border border-slate-400 p-1.5" id="pv_d_d"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(e) Copy of referral Specialist/CMO</td><td class="border border-slate-400 p-1.5" id="pv_d_e"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(f) Whether hospital gave breakup for lab investigations</td><td class="border border-slate-400 p-1.5" id="pv_d_f"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(g)-I. Photocopies of claim papers (if original lost)</td><td class="border border-slate-400 p-1.5" id="pv_d_g1"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(g)-II. Affidavit on Stamp Paper</td><td class="border border-slate-400 p-1.5" id="pv_d_g2"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(h)-I. Affidavit on Stamp paper by Claimant (in case of death)</td><td class="border border-slate-400 p-1.5" id="pv_d_h1"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(h)-II. No objection from other legal heirs</td><td class="border border-slate-400 p-1.5" id="pv_d_h2"></td></tr>
+        <tr><td class="border border-slate-400 p-1.5">(h)-III. Copy of death certificate</td><td class="border border-slate-400 p-1.5" id="pv_d_h3"></td></tr>
+      </table>
+
+      <div class="flex justify-between mt-6">
+        <div>Dated: <span id="pv_a_dated"></span></div>
+        <div class="font-bold">Signature of DGEHS card holder</div>
+      </div>
+      <div class="p-row"><div class="p-label">Tel. No. (O) / (R)</div><div class="p-value" id="pv_a_tel"></div></div>
+      <div class="p-row"><div class="p-label">E-Mail Address</div><div class="p-value" id="pv_a_email"></div></div>
+      <div class="p-row"><div class="p-label">Name of the Bank / Branch / SB A/C No.</div><div class="p-value" id="pv_a_bank"></div></div>
+      <div class="p-row"><div class="p-label">Branch MICR Code / Tel. No. of Bank Branch</div><div class="p-value" id="pv_a_micr"></div></div>
+    </div>
+
+    <!-- PAGE 2 -->
+    <div class="page bg-white border border-slate-200 rounded-xl shadow-sm max-w-3xl mx-auto mb-7 px-14 py-11 text-[13.5px] leading-relaxed">
+      <div class="text-center font-bold underline">DELHI GOVERNMENT EMPLOYEES HEALTH SCHEME</div>
+      <div class="text-center font-bold underline">MEDICAL 2004 FORM FOR REIMBURSEMENT OF MEDICAL CLAIMS OF DGEHS BENEFICIARIES</div>
+      <div class="text-center font-bold my-1">***</div>
+      <div class="p-row"><div class="p-label">Computer No.</div><div class="p-value" id="pv_b_computer_no"></div></div>
+      <div class="text-center italic my-2">(To be filled by the claimant)</div>
+
+      <div class="p-row"><div class="p-label">1. DGEHS Card No. and Place of issue</div><div class="p-value" id="pv_b_card_no"></div></div>
+      <div class="p-row"><div class="p-label">2. Validity of DGEHS Card</div><div class="p-value" id="pv_b_valid"></div></div>
+      <div class="p-row"><div class="p-label">3. Ward entitlement</div><div class="p-value" id="pv_b_ward"></div></div>
+      <div class="p-row"><div class="p-label">4. Full name of card holder (Block Letters)</div><div class="p-value" id="pv_b_name"></div></div>
+      <div class="p-row"><div class="p-label">5. Full address</div><div class="p-value" id="pv_b_address"></div></div>
+      <div class="p-row"><div class="p-label">6. Telephone no. (O)/(R)/(M)</div><div class="p-value" id="pv_b_tel"></div></div>
+      <div class="p-row"><div class="p-label">7. E-mail address</div><div class="p-value" id="pv_b_email"></div></div>
+      <div class="p-row"><div class="p-label">8. Bank / Branch / SB A/C</div><div class="p-value" id="pv_b_bank"></div></div>
+      <div class="p-row"><div class="p-label">Branch MICR Code / IFC Code / Bank Tel.</div><div class="p-value" id="pv_b_micr"></div></div>
+      <div class="p-row"><div class="p-label">9. Name of patient &amp; relationship with card holder</div><div class="p-value" id="pv_b_patient"></div></div>
+      <div class="p-row"><div class="p-label">10. Basic Pay (excluding Grade Pay)</div><div class="p-value" id="pv_b_basic_pay"></div></div>
+      <div class="p-row"><div class="p-label">11(a). Hospital — OPD treatment/investigations</div><div class="p-value" id="pv_b_hosp_opd"></div></div>
+      <div class="p-row"><div class="p-label">11(b). Hospital — Indoor Treatment</div><div class="p-value" id="pv_b_hosp_indoor"></div></div>
+      <div class="p-row"><div class="p-label">12. Date of admission / discharge (Indoor only)</div><div class="p-value" id="pv_b_dates"></div></div>
+
+      <div class="mt-3 font-bold">13. Charges Claimed</div>
+      <table class="w-full border-collapse my-2 text-[12.5px]">
+        <thead><tr><th class="border border-slate-400 p-1.5 bg-slate-100"></th><th class="border border-slate-400 p-1.5 bg-slate-100">Total Claimed</th><th class="border border-slate-400 p-1.5 bg-slate-100">Consultation</th><th class="border border-slate-400 p-1.5 bg-slate-100">Investigation</th><th class="border border-slate-400 p-1.5 bg-slate-100">Medicine</th><th class="border border-slate-400 p-1.5 bg-slate-100">Other</th></tr></thead>
+        <tbody>
+          <tr><td class="border border-slate-400 p-1.5">OPD Treatment</td><td class="border border-slate-400 p-1.5" id="pv_c_opd_total"></td><td class="border border-slate-400 p-1.5" id="pv_c_opd_consult"></td><td class="border border-slate-400 p-1.5" id="pv_c_opd_invest"></td><td class="border border-slate-400 p-1.5" id="pv_c_opd_med"></td><td class="border border-slate-400 p-1.5" id="pv_c_opd_other"></td></tr>
+          <tr><td class="border border-slate-400 p-1.5">Indoor Treatment</td><td class="border border-slate-400 p-1.5" id="pv_c_ind_total"></td><td class="border border-slate-400 p-1.5" id="pv_c_ind_consult"></td><td class="border border-slate-400 p-1.5" id="pv_c_ind_invest"></td><td class="border border-slate-400 p-1.5" id="pv_c_ind_med"></td><td class="border border-slate-400 p-1.5" id="pv_c_ind_other"></td></tr>
+        </tbody>
+      </table>
+      <div class="p-row"><div class="p-label">14. Details of Referral</div><div class="p-value" id="pv_b_referral"></div></div>
+      <div class="p-row"><div class="p-label">15. Details of Medical advance, if any</div><div class="p-value" id="pv_b_advance"></div></div>
+
+      <div class="text-center font-bold underline mt-6 mb-2">DECLARATION</div>
+      <div class="text-justify my-3">I hereby declare that the statements made in the application are true to the best of my knowledge and belief and the person for whom medical expenses were incurred is wholly dependent on me. I am a DGEHS beneficiary and the DGEHS card was valid at the time of treatment. I agree for the reimbursement as is admissible under the rules.</div>
+      <div class="flex justify-between mt-6">
+        <div>Dated: <span id="pv_e_decl_date"></span></div>
+        <div class="font-bold">Signature of DGEHS card holder</div>
+      </div>
+      <div class="text-[11px] text-justify mt-3">Note: Misuse of DGEHS facilities is a criminal offence. Suitable action including cancellation of DGH card shall be taken in case of willful suppression of facts or submission of false statements. Suitable disciplinary action shall be taken in case of serving employees.</div>
+    </div>
+
+    <!-- PAGE 3 -->
+    <div class="page bg-white border border-slate-200 rounded-xl shadow-sm max-w-3xl mx-auto mb-7 px-14 py-11 text-[13.5px] leading-relaxed">
+      <div class="font-bold my-1.5">Medical Re-Imbursement bill in R/o <span id="pv_e_bill_ro"></span></div>
+      <div class="font-bold my-1.5">Name of the Treating Hospital <span id="pv_e_treating_hosp"></span></div>
+      <div class="font-bold my-1.5">Whether Govt./Panel/Pvt. Hospital <span id="pv_e_hosp_type"></span></div>
+
+      <div class="text-center font-bold underline mt-4 mb-2">CALCULATION SHEET</div>
+      <div class="p-row"><div class="p-label">Period of Treatment</div><div class="p-value" id="pv_e_period"></div></div>
+
+      <table class="w-full border-collapse my-2 text-[12.5px]" id="pv-calc-table">
+        <thead>
+          <tr>
+            <th class="border border-slate-400 p-1.5 bg-slate-100">S.No.</th>
+            <th class="border border-slate-400 p-1.5 bg-slate-100">Treatment/Investigation</th>
+            <th class="border border-slate-400 p-1.5 bg-slate-100">DGEHS Code</th>
+            <th class="border border-slate-400 p-1.5 bg-slate-100">Rate Charged</th>
+            <th class="border border-slate-400 p-1.5 bg-slate-100">DGEHS Approved</th>
+            <th class="border border-slate-400 p-1.5 bg-slate-100">Restricted claim</th>
+            <th class="border border-slate-400 p-1.5 bg-slate-100">Remarks</th>
+          </tr>
+        </thead>
+        <tbody id="pv-calc-tbody"></tbody>
+      </table>
+
+      <div class="flex justify-between mt-9">
+        <div>DDO: <span id="pv_e_ddo"></span></div>
+        <div>HOS: <span id="pv_e_hos"></span></div>
+        <div>Applicant Signature: <span id="pv_e_applicant_sig"></span></div>
+      </div>
+      <div class="text-right font-bold mt-5">ACCOUNT OFFICER (E)</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentTab = 1;
+
+function switchTab(tabNum) {
+  currentTab = tabNum;
+  for (let i = 1; i <= 3; i++) {
+    const sec = document.getElementById(`tab-section-${i}`);
+    const btn = document.getElementById(`tab-btn-${i}`);
+    if (!sec || !btn) continue;
+    
+    if (i === tabNum) {
+      sec.classList.remove('hidden');
+      btn.className = 'tab-btn flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all border border-brand bg-brand text-white shadow-sm';
+      btn.querySelector('span:first-child').className = 'w-6 h-6 rounded-full bg-white/20 text-white flex items-center justify-center text-xs font-bold';
+    } else {
+      sec.classList.add('hidden');
+      btn.className = 'tab-btn flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all border border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900';
+      btn.querySelector('span:first-child').className = 'w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold';
+    }
+  }
+  const labelText = tabNum === 1 ? 'Section 1: Check List' : tabNum === 2 ? 'Section 2: Medical 2004 Form' : 'Section 3: Bill & Calculation Sheet';
+  document.getElementById('step-label').textContent = `Tab ${tabNum} of 3 — ${labelText}`;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setupFieldSync() {
+  const syncPairs = [
+    { from: 'a_card_no', to: 'b_card_no' },
+    { from: 'a_valid_from', to: 'b_valid_from' },
+    { from: 'a_valid_to', to: 'b_valid_to' },
+    { from: 'a_name', to: 'b_name' },
+    { from: 'a_name', to: 'e_bill_ro' },
+    { from: 'a_name', to: 'e_applicant_sig' },
+    { from: 'a_tel_o', to: 'b_tel_o' },
+    { from: 'a_tel_r', to: 'b_tel_r' },
+    { from: 'a_email', to: 'b_email' },
+    { from: 'a_bank', to: 'b_bank' },
+    { from: 'a_branch', to: 'b_branch' },
+    { from: 'a_sbac', to: 'b_sbac' },
+    { from: 'a_micr', to: 'b_micr' },
+    { from: 'a_bank_tel', to: 'b_bank_tel' }
+  ];
+
+  syncPairs.forEach(pair => {
+    const srcEl = document.getElementById(pair.from);
+    const tgtEl = document.getElementById(pair.to);
+    if (srcEl && tgtEl) {
+      srcEl.addEventListener('input', () => {
+        if (!tgtEl.dataset.userEdited || tgtEl.value === '') {
+          tgtEl.value = srcEl.value;
+        }
+      });
+      tgtEl.addEventListener('input', () => {
+        tgtEl.dataset.userEdited = 'true';
+      });
+    }
+  });
+
+  document.querySelectorAll('input[name="a_entitlement"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const val = radio.value;
+      const targetRadio = document.querySelector(`input[name="b_ward"][value="${val}"]`);
+      if (targetRadio) targetRadio.checked = true;
+    });
+  });
+}
+
+let calcRowCount = 0;
+
+function attachCGHSSearch(tr) {
+  const codeInput = tr.querySelector('.cr-code');
+  const nameInput = tr.querySelector('.cr-name');
+  const rateInput = tr.querySelector('.cr-rate');
+  const approvedInput = tr.querySelector('.cr-approved');
+  const restrictedInput = tr.querySelector('.cr-restricted');
+
+  function calculateRestricted() {
+    const rateVal = parseFloat(rateInput.value);
+    const approvedVal = parseFloat(approvedInput.value);
+    if (!isNaN(rateVal) && !isNaN(approvedVal)) {
+      restrictedInput.value = Math.min(rateVal, approvedVal).toString();
+    } else if (!isNaN(approvedVal)) {
+      restrictedInput.value = approvedVal.toString();
+    }
+  }
+
+  rateInput.addEventListener('input', calculateRestricted);
+  approvedInput.addEventListener('input', calculateRestricted);
+
+  function setupDropdown(inputEl) {
+    const td = inputEl.parentElement;
+    const dropdown = td.querySelector('.cghs-dropdown');
+
+    function renderDropdown(query) {
+      const rateList = window.RATE_LIST || [];
+      if (!rateList.length) {
+        dropdown.innerHTML = '<div class="p-3 text-xs text-slate-500">No rate list data available</div>';
+        dropdown.classList.remove('hidden');
+        return;
+      }
+
+      const q = (query || '').trim().toLowerCase();
+      let matches = [];
+      if (!q) {
+        matches = rateList.slice(0, 35);
+      } else {
+        matches = rateList.filter(item => {
+          const code = (item.alphanumeric_code || '').toLowerCase();
+          const name = (item.cghs_treatment_procedure_investigation_list || '').toLowerCase();
+          const cat = (item.speciality_classification || '').toLowerCase();
+          return code.includes(q) || name.includes(q) || cat.includes(q);
+        }).slice(0, 45);
+      }
+
+      if (matches.length === 0) {
+        dropdown.innerHTML = '<div class="p-3 text-xs text-slate-500">No matching CGHS codes found</div>';
+      } else {
+        dropdown.innerHTML = matches.map(item => `
+          <div class="cghs-item p-2 hover:bg-brand-light cursor-pointer text-xs transition-colors flex flex-col gap-0.5"
+               data-code="${item.alphanumeric_code || ''}"
+               data-name="${(item.cghs_treatment_procedure_investigation_list || '').replace(/"/g, '&quot;')}"
+               data-rate="${item.tier_i_nabh_general_ward || ''}">
+            <div class="flex justify-between items-center">
+              <span class="font-mono font-bold text-brand bg-brand-light px-1.5 py-0.5 rounded text-[11px]">${item.alphanumeric_code}</span>
+              <span class="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[11px]">₹${item.tier_i_nabh_general_ward}</span>
+            </div>
+            <div class="text-slate-800 font-medium line-clamp-2">${item.cghs_treatment_procedure_investigation_list}</div>
+            <div class="text-[10px] text-slate-400 font-sans">${item.speciality_classification || ''}</div>
+          </div>
+        `).join('');
+      }
+
+      dropdown.classList.remove('hidden');
+
+      dropdown.querySelectorAll('.cghs-item').forEach(itemEl => {
+        itemEl.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const selectedCode = itemEl.getAttribute('data-code');
+          const selectedName = itemEl.getAttribute('data-name');
+          const selectedRate = itemEl.getAttribute('data-rate');
+
+          codeInput.value = selectedCode;
+          nameInput.value = selectedName;
+          approvedInput.value = selectedRate;
+          calculateRestricted();
+
+          dropdown.classList.add('hidden');
+        });
+      });
+    }
+
+    inputEl.addEventListener('focus', () => {
+      document.querySelectorAll('.cghs-dropdown').forEach(d => d.classList.add('hidden'));
+      renderDropdown(inputEl.value);
+    });
+
+    inputEl.addEventListener('input', () => {
+      renderDropdown(inputEl.value);
+    });
+
+    inputEl.addEventListener('blur', () => {
+      setTimeout(() => dropdown.classList.add('hidden'), 200);
+    });
+  }
+
+  setupDropdown(codeInput);
+  setupDropdown(nameInput);
+}
+
+function addCalcRow(){
+  calcRowCount++;
+  const tbody = document.getElementById('calc-tbody');
+  const tr = document.createElement('tr');
+  tr.className = 'hover:bg-slate-50 transition-colors';
+  tr.innerHTML = `
+    <td class="border border-slate-300 p-1.5 text-center font-semibold text-slate-600">${calcRowCount}</td>
+    <td class="border border-slate-300 p-1 relative">
+      <input class="cr-name w-full p-1.5 text-xs rounded border border-slate-200 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none" placeholder="Search treatment or investigation...">
+      <div class="cghs-dropdown hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-xl z-50 max-h-56 overflow-y-auto divide-y divide-slate-100 min-w-[280px]"></div>
+    </td>
+    <td class="border border-slate-300 p-1 relative">
+      <input class="cr-code w-full p-1.5 text-xs rounded font-mono font-medium text-brand border border-slate-200 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none" placeholder="Code (e.g. CN001)">
+      <div class="cghs-dropdown hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-xl z-50 max-h-56 overflow-y-auto divide-y divide-slate-100 min-w-[280px]"></div>
+    </td>
+    <td class="border border-slate-300 p-1"><input class="cr-rate w-full p-1.5 text-xs rounded border border-slate-200 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none" placeholder="0"></td>
+    <td class="border border-slate-300 p-1"><input class="cr-approved w-full p-1.5 text-xs rounded bg-slate-50 border border-slate-200 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none" placeholder="0"></td>
+    <td class="border border-slate-300 p-1"><input class="cr-restricted w-full p-1.5 text-xs rounded bg-slate-50 border border-slate-200 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none" placeholder="0"></td>
+    <td class="border border-slate-300 p-1"><input class="cr-remarks w-full p-1.5 text-xs rounded border border-slate-200 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none"></td>
+  `;
+  tbody.appendChild(tr);
+  attachCGHSSearch(tr);
+}
+
+function removeCalcRow(){
+  const tbody = document.getElementById('calc-tbody');
+  if(tbody.lastElementChild){
+    tbody.removeChild(tbody.lastElementChild);
+    calcRowCount = Math.max(0, calcRowCount-1);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupFieldSync();
+  for(let i=0; i<6; i++) addCalcRow();
+});
+
+// Fallback if DOMContentLoaded already fired
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setupFieldSync();
+  if (calcRowCount === 0) {
+    for(let i=0; i<6; i++) addCalcRow();
+  }
+}
+
+function val(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function radioVal(name){ const el = document.querySelector(`input[name="${name}"]:checked`); return el ? el.value : ''; }
+function dash(s){ return s && s.length ? s : '________________'; }
+function fmtDate(s){
+  if(!s) return '';
+  const d = new Date(s + 'T00:00:00');
+  if(isNaN(d)) return s;
+  return d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+}
+function setText(id, text){ const el = document.getElementById(id); if(el) el.textContent = text; }
+function setYN(pvId, name){ setText(pvId, dash(radioVal(name))); }
+
+function showPreview(){
+  setText('pv_a_card_no', dash(val('a_card_no')));
+  setText('pv_a_valid', `${fmtDate(val('a_valid_from')) || '..........'} to ${fmtDate(val('a_valid_to')) || '..........'}`);
+  setText('pv_a_entitlement', 'Entitlement: ' + dash(radioVal('a_entitlement')));
+  setText('pv_a_name', dash(val('a_name')));
+  setText('pv_a_status', dash(radioVal('a_status')));
+
+  setYN('pv_d_a','d_a'); setYN('pv_d_b','d_b');
+  setText('pv_d_c', dash(val('d_c')));
+  setYN('pv_d_d','d_d'); setYN('pv_d_e','d_e'); setYN('pv_d_f','d_f');
+  setYN('pv_d_g1','d_g1'); setYN('pv_d_g2','d_g2');
+  setYN('pv_d_h1','d_h1'); setYN('pv_d_h2','d_h2'); setYN('pv_d_h3','d_h3');
+
+  setText('pv_a_dated', fmtDate(val('a_dated')) || '.......................');
+  setText('pv_a_tel', `(O) ${dash(val('a_tel_o'))}   (R) ${dash(val('a_tel_r'))}`);
+  setText('pv_a_email', dash(val('a_email')));
+  setText('pv_a_bank', `${dash(val('a_bank'))} / ${dash(val('a_branch'))} / ${dash(val('a_sbac'))}`);
+  setText('pv_a_micr', `${dash(val('a_micr'))} / ${dash(val('a_bank_tel'))}`);
+
+  setText('pv_b_computer_no', dash(val('b_computer_no')));
+  setText('pv_b_card_no', dash(val('b_card_no')));
+  setText('pv_b_valid', `from ${fmtDate(val('b_valid_from')) || '..........'} to ${fmtDate(val('b_valid_to')) || '..........'}`);
+  setText('pv_b_ward', dash(radioVal('b_ward')));
+  setText('pv_b_name', dash(val('b_name')));
+  setText('pv_b_address', dash(val('b_address')));
+  setText('pv_b_tel', `(O) ${dash(val('b_tel_o'))}  (R) ${dash(val('b_tel_r'))}  (M) ${dash(val('b_tel_m'))}`);
+  setText('pv_b_email', dash(val('b_email')));
+  setText('pv_b_bank', `${dash(val('b_bank'))} / ${dash(val('b_branch'))} / ${dash(val('b_sbac'))}`);
+  setText('pv_b_micr', `${dash(val('b_micr'))} / ${dash(val('b_ifc'))} / ${dash(val('b_bank_tel'))}`);
+  setText('pv_b_patient', dash(val('b_patient')));
+  setText('pv_b_basic_pay', dash(val('b_basic_pay')));
+  setText('pv_b_hosp_opd', dash(val('b_hosp_opd')));
+  setText('pv_b_hosp_indoor', dash(val('b_hosp_indoor')));
+  setText('pv_b_dates', `Admission: ${fmtDate(val('b_admission')) || '..........'}   Discharge: ${fmtDate(val('b_discharge')) || '..........'}`);
+
+  setText('pv_c_opd_total', dash(val('c_opd_total')));
+  setText('pv_c_opd_consult', dash(val('c_opd_consult')));
+  setText('pv_c_opd_invest', dash(val('c_opd_invest')));
+  setText('pv_c_opd_med', dash(val('c_opd_med')));
+  setText('pv_c_opd_other', dash(val('c_opd_other')));
+  setText('pv_c_ind_total', dash(val('c_ind_total')));
+  setText('pv_c_ind_consult', dash(val('c_ind_consult')));
+  setText('pv_c_ind_invest', dash(val('c_ind_invest')));
+  setText('pv_c_ind_med', dash(val('c_ind_med')));
+  setText('pv_c_ind_other', dash(val('c_ind_other')));
+
+  setText('pv_b_referral', dash(val('b_referral')));
+  setText('pv_b_advance', dash(val('b_advance')));
+
+  setText('pv_e_decl_date', fmtDate(val('e_decl_date')) || '.......................');
+  setText('pv_e_bill_ro', dash(val('e_bill_ro')));
+  setText('pv_e_treating_hosp', dash(val('e_treating_hosp')));
+  setText('pv_e_hosp_type', dash(radioVal('e_hosp_type')));
+  setText('pv_e_period', `From ${fmtDate(val('e_period_from')) || '..........'} to ${fmtDate(val('e_period_to')) || '..........'}`);
+  setText('pv_e_ddo', dash(val('e_ddo')));
+  setText('pv_e_hos', dash(val('e_hos')));
+  setText('pv_e_applicant_sig', dash(val('e_applicant_sig')));
+
+  const pvBody = document.getElementById('pv-calc-tbody');
+  pvBody.innerHTML = '';
+  const rows = document.querySelectorAll('#calc-tbody tr');
+  rows.forEach((tr, idx) => {
+    const name = tr.querySelector('.cr-name').value.trim();
+    const code = tr.querySelector('.cr-code').value.trim();
+    const rate = tr.querySelector('.cr-rate').value.trim();
+    const approved = tr.querySelector('.cr-approved').value.trim();
+    const restricted = tr.querySelector('.cr-restricted').value.trim();
+    const remarks = tr.querySelector('.cr-remarks').value.trim();
+    const pvTr = document.createElement('tr');
+    pvTr.innerHTML = `<td class="border border-slate-400 p-1.5 text-center">${idx+1}</td><td class="border border-slate-400 p-1.5">${name||'&nbsp;'}</td><td class="border border-slate-400 p-1.5">${code||'&nbsp;'}</td><td class="border border-slate-400 p-1.5">${rate||'&nbsp;'}</td><td class="border border-slate-400 p-1.5">${approved||'&nbsp;'}</td><td class="border border-slate-400 p-1.5">${restricted||'&nbsp;'}</td><td class="border border-slate-400 p-1.5">${remarks||'&nbsp;'}</td>`;
+    pvBody.appendChild(pvTr);
+  });
+
+  document.getElementById('form-wrap').style.display = 'none';
+  document.getElementById('preview-wrap').style.display = 'block';
+  document.getElementById('step-label').textContent = 'Step 2 of 2 — Preview & Print';
+  window.scrollTo(0,0);
+}
+
+function showForm(){
+  document.getElementById('preview-wrap').style.display = 'none';
+  document.getElementById('form-wrap').style.display = 'block';
+  switchTab(currentTab);
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>
