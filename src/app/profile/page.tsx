@@ -51,7 +51,7 @@ export default function ProfilePage() {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveToAtlas = async (e: React.FormEvent) => {
+  const handleSaveToNeon = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
@@ -62,11 +62,11 @@ export default function ProfilePage() {
       });
       const json = await res.json();
       if (json.success) {
-        setToastMsg('Employee profile saved to MongoDB Atlas successfully! Future claim forms will auto-fill with these details.');
+        setToastMsg('Employee profile saved to Neon DB (PostgreSQL) successfully! Future claim forms will auto-fill with these details.');
         setTimeout(() => setToastMsg(''), 5000);
       }
     } catch (e) {
-      console.error('Failed saving profile to Atlas', e);
+      console.error('Failed saving profile to Neon DB', e);
     } finally {
       setSaving(false);
     }
@@ -86,16 +86,16 @@ export default function ProfilePage() {
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white">Static Profile &amp; Default Claim Information</h1>
             <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-              Save your official DGEHS details here. Information saved in MongoDB Atlas will automatically prefill every new 5-form medical claim application!
+              Save your official DGEHS details here. Information saved in Neon DB will automatically prefill every new 5-form medical claim application!
             </p>
           </div>
 
           <button
-            onClick={handleSaveToAtlas}
+            onClick={handleSaveToNeon}
             disabled={saving}
-            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg transition-all flex items-center gap-2"
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
           >
-            {saving ? 'Saving...' : '💾 Save Profile to MongoDB Atlas'}
+            {saving ? 'Saving...' : '💾 Save Profile to Neon DB'}
           </button>
         </div>
 
@@ -106,13 +106,13 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <form onSubmit={handleSaveToAtlas} className="space-y-6 text-slate-900">
+        <form onSubmit={handleSaveToNeon} className="space-y-6 text-slate-900">
 
           {/* Card 1: DGEHS & Official Details */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="text-xs font-bold text-sky-800 uppercase tracking-wider border-b border-slate-100 pb-2 flex items-center justify-between">
               <span>1. DGEHS Card &amp; Official Details</span>
-              <span className="text-[10px] font-mono bg-sky-100 text-sky-800 px-2 py-0.5 rounded">MongoDB Collection: UserProfile</span>
+              <span className="text-[10px] font-mono bg-sky-100 text-sky-800 px-2 py-0.5 rounded">Neon DB Table: user_profiles</span>
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -373,7 +373,7 @@ export default function ProfilePage() {
               disabled={saving}
               className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm px-8 py-3.5 rounded-xl shadow-lg transition-all"
             >
-              {saving ? 'Saving to Atlas...' : '💾 Save Profile to MongoDB Atlas'}
+              {saving ? 'Saving to Neon DB...' : '💾 Save Profile to Neon DB (PostgreSQL)'}
             </button>
           </div>
         </form>

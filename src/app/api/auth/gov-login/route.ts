@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { parseGovEmail, createDefaultProfileFromGovEmail } from '@/lib/auth-helpers';
-import { connectToDatabase } from '@/lib/mongodb';
-import UserProfile from '@/lib/models/UserProfile';
-import { localDb } from '@/lib/db';
+import { getNeonUserProfile, upsertNeonUserProfile } from '@/lib/neon';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json();
+    const { email, name } = await request.json();
     const parsed = parseGovEmail(email);
 
     if (!parsed.isValid) {
@@ -16,47 +16,36 @@ export async function POST(request: Request) {
       );
     }
 
-    let profileData = null;
-    const db = await connectToDatabase();
-
-    if (db) {
-      // Query MongoDB Atlas
-      let user = await UserProfile.findOne({ email: parsed.email });
-      if (!user) {
-        const defaultProf = createDefaultProfileFromGovEmail(parsed);
-        user = await UserProfile.create({
-          ...defaultProf
-        });
-      }
-      profileData = user.toObject();
-    } else {
-      // Local DB Fallback
-      profileData = localDb.getMockProfile();
-      profileData.employeeId = parsed.employeeId;
-      profileData.email = parsed.email;
-      profileData.employeeName = `${parsed.firstName.toUpperCase()} KUMAR`;
+    // Query or create user profile in Neon DB
+    let profileData = await getNeonUserProfile(parsed.email);
+    if (!profileData) {
+      const defaultProf = createDefaultProfileFromGovEmail(parsed, name);
+      profileData = await upsertNeonUserProfile(parsed.email, defaultProf);
+    } else if (name && !profileData.employeeName) {
+      profileData = await upsertNeonUserProfile(parsed.email, { employeeName: name.toUpperCase() });
     }
 
     const sessionPayload = {
       isLoggedIn: true,
       email: parsed.email,
-      employeeId: parsed.employeeId,
+      employeeId: profileData?.employeeId || parsed.employeeId,
       firstName: parsed.firstName,
       profile: profileData
     };
 
     const response = NextResponse.json({
       success: true,
-      message: `Welcome ${parsed.firstName}! Logged in as ${parsed.email}`,
+      message: `Welcome, ${profileData?.employeeName || parsed.firstName}!`,
       session: sessionPayload
     });
 
-    // Set HTTP session cookie
+    // Set session cookie
     response.cookies.set('dgehs_session', JSON.stringify(sessionPayload), {
       httpOnly: false,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7 // 7 days
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30 // 30 days
     });
 
     return response;

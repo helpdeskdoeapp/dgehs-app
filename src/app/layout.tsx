@@ -10,7 +10,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "DGEHS Medical Claim Portal — Directorate of Education",
-  description: "Official 5-Form DGEHS Medical Reimbursement Portal with Google OAuth & MongoDB Atlas",
+  description: "Official 5-Form DGEHS Medical Reimbursement Portal with Multi-Provider Auth (Google, GitHub, Facebook, X, Email) & Neon Serverless PostgreSQL DB on Vercel",
 };
 
 export default function RootLayout({

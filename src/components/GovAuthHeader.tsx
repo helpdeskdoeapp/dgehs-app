@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { CommonProfile, CompleteFormData } from '@/types/form';
 import { parseGovEmail } from '@/lib/auth-helpers';
+import AuthModal from './AuthModal';
 
 interface GovAuthHeaderProps {
   formData: CompleteFormData;
@@ -19,10 +20,11 @@ export default function GovAuthHeader({
   const { data: sessionData, status: sessionStatus } = useSession();
   const [customSession, setCustomSession] = useState<any>(null);
 
-  const [emailInput, setEmailInput] = useState('98241.rajesh@doe.delhi.gov.in');
+  const [emailInput, setEmailInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Drafts list modal state
   const [claimsList, setClaimsList] = useState<any[]>([]);
@@ -55,10 +57,6 @@ export default function GovAuthHeader({
       onProfileLoaded((sessionData as any).profile);
     }
   }, [sessionData]);
-
-  const handleGoogleSignIn = () => {
-    signIn('google');
-  };
 
   const handleDevEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +94,7 @@ export default function GovAuthHeader({
     signOut({ callbackUrl: '/' });
   };
 
-  const handleSaveProfileToAtlas = async () => {
+  const handleSaveProfileToNeon = async () => {
     try {
       const res = await fetch('/api/profile', {
         method: 'POST',
@@ -105,7 +103,7 @@ export default function GovAuthHeader({
       });
       const json = await res.json();
       if (json.success) {
-        setStatusMsg('Static employee profile saved to MongoDB Atlas!');
+        setStatusMsg('Static employee profile saved to Neon DB (PostgreSQL)!');
         setTimeout(() => setStatusMsg(''), 4000);
       }
     } catch (e) {
@@ -150,10 +148,10 @@ export default function GovAuthHeader({
     }
   };
 
-  const liveParsed = parseGovEmail(emailInput);
+  const liveParsed = emailInput ? parseGovEmail(emailInput) : { isValid: false, employeeId: '' };
   const isAuthenticated = sessionStatus === 'authenticated' || (customSession && customSession.isLoggedIn);
   const userObj = sessionData?.user || (customSession ? {
-    name: `${customSession.firstName || 'Gov'} Official`,
+    name: customSession.profile?.employeeName || `${customSession.firstName || 'Gov'} Official`,
     email: customSession.email,
     employeeId: customSession.employeeId,
     image: null
@@ -176,7 +174,7 @@ export default function GovAuthHeader({
               DGEHS Claims Portal
               <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                MongoDB Atlas Active
+                Neon DB Active
               </span>
             </h1>
           </div>
@@ -187,7 +185,7 @@ export default function GovAuthHeader({
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <div className="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2.5">
               {(userObj as any).image ? (
-                <img src={(userObj as any).image} alt="Avatar" className="w-7 h-7 rounded-full border border-sky-400" />
+                <img src={(userObj as any).image} alt="Avatar" className="w-7 h-7 rounded-full border border-sky-400 object-cover" />
               ) : (
                 <div className="w-7 h-7 rounded-full bg-sky-600 flex items-center justify-center text-white font-bold text-xs">
                   {userObj.name?.charAt(0) || 'E'}
@@ -207,10 +205,10 @@ export default function GovAuthHeader({
             </div>
 
             <button
-              onClick={handleSaveProfileToAtlas}
+              onClick={handleSaveProfileToNeon}
               className="bg-sky-600 hover:bg-sky-500 text-white font-semibold px-3 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
             >
-              <span>💾</span> Save Profile to Atlas
+              <span>💾</span> Save Profile to Neon DB
             </button>
 
             <button
@@ -238,9 +236,9 @@ export default function GovAuthHeader({
         ) : (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
 
-            {/* Real Google OAuth Login Button */}
+            {/* Multi-Provider Modal Trigger */}
             <button
-              onClick={handleGoogleSignIn}
+              onClick={() => setAuthModalOpen(true)}
               className="bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 border border-slate-300"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -249,20 +247,20 @@ export default function GovAuthHeader({
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
               </svg>
-              <span>Sign in with Google</span>
+              <span>Sign In (Google, X, FB, GitHub, Email)</span>
             </button>
 
             <div className="hidden sm:block text-slate-500 text-xs font-semibold">OR</div>
 
-            {/* Direct Email Auth */}
+            {/* Direct Instant Email Input */}
             <form onSubmit={handleDevEmailLogin} className="flex items-center gap-2">
               <div className="relative">
                 <input
                   type="email"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="employeeid.firstname@doe.delhi.gov.in"
-                  className="w-full sm:w-64 p-2 text-xs text-slate-900 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none font-mono"
+                  placeholder="Enter any email address..."
+                  className="w-full sm:w-64 p-2 text-xs text-slate-900 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
                 />
                 {liveParsed.isValid && (
                   <div className="absolute right-2 top-2 text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 py-0.5 rounded">
@@ -273,10 +271,10 @@ export default function GovAuthHeader({
 
               <button
                 type="submit"
-                disabled={loading}
-                className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all whitespace-nowrap"
+                disabled={loading || !emailInput}
+                className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all whitespace-nowrap disabled:opacity-50"
               >
-                Gov Login
+                Instant Login
               </button>
             </form>
           </div>
@@ -303,25 +301,25 @@ export default function GovAuthHeader({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white text-slate-900 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-sm text-sky-900">Saved Drafts &amp; Submissions (MongoDB Atlas)</h3>
+              <h3 className="font-bold text-sm text-sky-900">Saved Drafts &amp; Submissions (Neon DB)</h3>
               <button onClick={() => setShowDraftsModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
             {claimsList.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-500">
-                No saved drafts found in MongoDB Atlas. Click "Save Claim Draft" to save your work!
+                No saved drafts found in Neon DB. Click "Save Claim Draft" to save your work!
               </div>
             ) : (
               <div className="space-y-2 max-h-72 overflow-y-auto">
                 {claimsList.map((claim) => (
                   <div
-                    key={claim._id}
+                    key={claim._id || claim.id}
                     className="p-3 border border-slate-200 rounded-xl hover:bg-sky-50 flex justify-between items-center text-xs"
                   >
                     <div>
                       <div className="font-bold text-slate-800">{claim.title}</div>
                       <div className="text-[10px] text-slate-400">
-                        Updated: {new Date(claim.updatedAt).toLocaleString()}
+                        Updated: {new Date(claim.updatedAt || claim.createdAt || Date.now()).toLocaleString()}
                       </div>
                     </div>
                     <button
@@ -343,6 +341,18 @@ export default function GovAuthHeader({
           </div>
         </div>
       )}
+
+      {/* Multi-Provider Auth Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onLoginSuccess={(sess) => {
+          setCustomSession(sess);
+          if (sess.profile) {
+            onProfileLoaded(sess.profile);
+          }
+        }}
+      />
     </div>
   );
 }

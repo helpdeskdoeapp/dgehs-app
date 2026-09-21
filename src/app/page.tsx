@@ -28,7 +28,7 @@ export default function HomePage() {
       })
       .catch((e) => console.error('Failed fetching profile', e));
 
-    // Fetch user claims from MongoDB Atlas / API
+    // Fetch user claims from Neon DB / API
     fetch('/api/user/claims')
       .then((res) => res.json())
       .then((json) => {
@@ -138,7 +138,7 @@ export default function HomePage() {
                   Submitted Claims
                 </div>
                 <div className="text-3xl font-extrabold text-emerald-400">{totalSubmitted}</div>
-                <div className="text-[11px] text-slate-500 mt-1">Saved in MongoDB Atlas</div>
+                <div className="text-[11px] text-slate-500 mt-1">Saved in Neon DB (PostgreSQL)</div>
               </div>
 
               <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-md">
@@ -168,7 +168,7 @@ export default function HomePage() {
                     <h2 className="text-base font-bold text-white flex items-center gap-2">
                       <span>📂 Previous Forms &amp; Saved Drafts</span>
                       <span className="text-[10px] font-mono bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full">
-                        MongoDB Atlas
+                        Neon DB
                       </span>
                     </h2>
                     <p className="text-xs text-slate-400">Click any claim to view, edit, or print the 5-page PDF</p>
@@ -184,7 +184,7 @@ export default function HomePage() {
 
                 {loadingClaims ? (
                   <div className="p-8 bg-slate-900/40 rounded-2xl border border-slate-800 text-center text-xs text-slate-500 animate-pulse">
-                    Loading claims from MongoDB Atlas...
+                    Loading claims from Neon DB...
                   </div>
                 ) : claims.length === 0 ? (
                   <div className="p-10 bg-slate-900/40 rounded-2xl border border-slate-800 text-center space-y-3">
@@ -224,7 +224,7 @@ export default function HomePage() {
                           <div className="text-xs text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
                             <span>Hospital: <strong className="text-slate-200">{claim.formData?.form4?.hospitalName || 'Max Hospital'}</strong></span>
                             <span>Patient: <strong className="text-slate-200">{claim.formData?.form4?.patientName || profile?.employeeName}</strong></span>
-                            <span>Date: <strong className="text-slate-200">{new Date(claim.updatedAt || Date.now()).toLocaleDateString()}</strong></span>
+                            <span>Date: <strong className="text-slate-200">{new Date(claim.updatedAt || claim.createdAt || Date.now()).toLocaleDateString()}</strong></span>
                           </div>
                         </div>
 

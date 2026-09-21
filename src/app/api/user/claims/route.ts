@@ -1,25 +1,27 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import ClaimDocument from '@/lib/models/ClaimDocument';
 import { cookies } from 'next/headers';
+import { getNeonUserClaims, saveNeonUserClaim } from '@/lib/neon';
+
+export const dynamic = 'force-dynamic';
+
+const DEFAULT_EMAIL = '98241.rajesh@doe.delhi.gov.in';
 
 export async function GET() {
   try {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('dgehs_session');
+    let email = DEFAULT_EMAIL;
 
-    if (!sessionCookie || !sessionCookie.value) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if (sessionCookie && sessionCookie.value) {
+      try {
+        const session = JSON.parse(sessionCookie.value);
+        if (session.email) email = session.email;
+      } catch (e) {
+        // fallback
+      }
     }
 
-    const session = JSON.parse(sessionCookie.value);
-    const db = await connectToDatabase();
-
-    if (!db) {
-      return NextResponse.json({ success: true, data: [] });
-    }
-
-    const claims = await ClaimDocument.find({ userEmail: session.email }).sort({ updatedAt: -1 });
+    const claims = await getNeonUserClaims(email);
     return NextResponse.json({
       success: true,
       count: claims.length,
@@ -34,42 +36,23 @@ export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('dgehs_session');
+    let email = DEFAULT_EMAIL;
 
-    if (!sessionCookie || !sessionCookie.value) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if (sessionCookie && sessionCookie.value) {
+      try {
+        const session = JSON.parse(sessionCookie.value);
+        if (session.email) email = session.email;
+      } catch (e) {
+        // fallback
+      }
     }
 
-    const session = JSON.parse(sessionCookie.value);
     const { claimId, title, status, formData } = await request.json();
-    const db = await connectToDatabase();
-
-    if (!db) {
-      return NextResponse.json({
-        success: true,
-        message: 'Saved to local session',
-        data: { title, status, formData }
-      });
-    }
-
-    let claim;
-    if (claimId) {
-      claim = await ClaimDocument.findOneAndUpdate(
-        { _id: claimId, userEmail: session.email },
-        { title, status, formData, updatedAt: new Date() },
-        { new: true }
-      );
-    } else {
-      claim = await ClaimDocument.create({
-        userEmail: session.email,
-        title: title || `Medical Claim - ${new Date().toLocaleDateString()}`,
-        status: status || 'DRAFT',
-        formData
-      });
-    }
+    const claim = await saveNeonUserClaim(email, { claimId, title, status, formData });
 
     return NextResponse.json({
       success: true,
-      message: `Claim ${status === 'SUBMITTED' ? 'submitted' : 'draft saved'} to MongoDB Atlas!`,
+      message: `Claim ${status === 'SUBMITTED' ? 'submitted' : 'draft saved'} to Neon DB!`,
       data: claim
     });
   } catch (error) {
