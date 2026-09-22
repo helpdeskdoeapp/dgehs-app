@@ -1,36 +1,36 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getNeonUserProfile, upsertNeonUserProfile } from '@/lib/neon';
+import { getCurrentUserSession } from '@/lib/auth-server';
 import { parseGovEmail, createDefaultProfileFromGovEmail } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
-const DEFAULT_EMAIL = '98241.rajesh@doe.delhi.gov.in';
-
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('dgehs_session');
-    let email = DEFAULT_EMAIL;
+    const auth = await getCurrentUserSession();
 
-    if (sessionCookie && sessionCookie.value) {
-      try {
-        const session = JSON.parse(sessionCookie.value);
-        if (session.email) email = session.email;
-      } catch (e) {
-        // fallback
-      }
+    if (!auth.isLoggedIn || !auth.user?.email) {
+      return NextResponse.json({
+        success: true,
+        isLoggedIn: false,
+        data: null,
+        message: 'No active session. Please sign in.'
+      });
     }
 
+    const email = auth.user.email;
     let profile = await getNeonUserProfile(email);
+
     if (!profile) {
       const parsed = parseGovEmail(email);
-      const defaultProf = createDefaultProfileFromGovEmail(parsed);
+      const defaultProf = createDefaultProfileFromGovEmail(parsed, auth.user.name || undefined);
       profile = await upsertNeonUserProfile(email, defaultProf);
     }
 
     return NextResponse.json({
       success: true,
+      isLoggedIn: true,
+      user: auth.user,
       data: profile
     });
   } catch (error) {
@@ -43,25 +43,30 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const updatedProfile = await request.json();
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('dgehs_session');
-    let email = updatedProfile.email || DEFAULT_EMAIL;
+    const auth = await getCurrentUserSession();
 
-    if (sessionCookie && sessionCookie.value) {
-      try {
-        const session = JSON.parse(sessionCookie.value);
-        if (session.email) email = session.email;
-      } catch (e) {
-        // fallback
-      }
+    if (!auth.isLoggedIn || !auth.user?.email) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required. Please sign in with Google or Email to save your profile.' },
+        { status: 401 }
+      );
     }
 
-    const savedProfile = await upsertNeonUserProfile(email, updatedProfile);
+    const updatedProfile = await request.json();
+    const email = auth.user.email;
+
+    // Securely tie profile to authenticated user's email
+    const cleanProfile = {
+      ...updatedProfile,
+      email: email
+    };
+
+    const savedProfile = await upsertNeonUserProfile(email, cleanProfile);
     const hasDbUrl = !!process.env.DATABASE_URL || !!process.env.POSTGRES_URL || !!process.env.NEON_DATABASE_URL;
 
     return NextResponse.json({
       success: true,
+      isLoggedIn: true,
       storage: hasDbUrl ? 'Neon DB (PostgreSQL - user_profiles table)' : 'Local JSON Fallback',
       message: hasDbUrl
         ? 'Employee profile saved successfully to Neon DB (user_profiles table)!'

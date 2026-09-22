@@ -48,18 +48,22 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isAuthenticated = sessionStatus === 'authenticated' || (customSession && customSession.isLoggedIn);
-  const user = sessionData?.user || (customSession ? {
-    name: customSession.profile?.employeeName || `${customSession.firstName || 'Gov'} Official`,
-    email: customSession.email || 'user@example.com',
-    employeeId: customSession.employeeId || '98241',
-    image: null
+  const isAuthenticated = sessionStatus === 'authenticated' || !!(customSession && customSession.isLoggedIn);
+  const user = sessionData?.user || (customSession?.session?.user ? {
+    name: customSession.session.user.name || customSession.session.profile?.employeeName || 'Gov Official',
+    email: customSession.session.user.email,
+    employeeId: customSession.session.profile?.employeeId || customSession.session.user.id?.substring(0, 8),
+    image: customSession.session.user.image || null
   } : null);
 
   const handleSignOut = async () => {
     setDropdownOpen(false);
     setCustomSession(null);
-    await fetch('/api/auth/gov-logout', { method: 'POST' });
+    try {
+      await fetch('/api/auth/gov-logout', { method: 'POST' });
+    } catch (e) {
+      // ignore
+    }
     window.dispatchEvent(new Event('dgehs-session-changed'));
     signOut({ callbackUrl: '/' });
   };

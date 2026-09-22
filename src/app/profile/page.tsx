@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import DatePicker from '@/components/DatePicker';
+import AuthModal from '@/components/AuthModal';
 import { CommonProfile } from '@/types/form';
 
 const DEFAULT_PROFILE: CommonProfile = {
@@ -36,6 +37,9 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; storage: string; latencyMs?: number; tables?: any; message?: string } | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ email?: string; name?: string; id?: string; image?: string | null } | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const fetchDbStatus = () => {
     fetch('/api/db-status')
@@ -48,17 +52,33 @@ export default function ProfilePage() {
       .catch((e) => console.error('Failed fetching db status', e));
   };
 
-  useEffect(() => {
+  const loadProfile = () => {
     fetch('/api/profile')
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && json.data) {
-          setProfile(json.data);
+        if (json.success) {
+          setIsLoggedIn(!!json.isLoggedIn);
+          if (json.user) {
+            setCurrentUser(json.user);
+          }
+          if (json.data) {
+            setProfile(json.data);
+          }
         }
       })
       .catch((e) => console.error('Failed fetching profile', e));
+  };
 
+  useEffect(() => {
+    loadProfile();
     fetchDbStatus();
+
+    window.addEventListener('focus', loadProfile);
+    window.addEventListener('dgehs-session-changed', loadProfile);
+    return () => {
+      window.removeEventListener('focus', loadProfile);
+      window.removeEventListener('dgehs-session-changed', loadProfile);
+    };
   }, []);
 
   const handleChange = (field: keyof CommonProfile, value: string) => {
@@ -138,6 +158,56 @@ export default function ProfilePage() {
           <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs font-semibold px-4 py-3 rounded-xl flex items-center justify-between animate-fadeIn shadow-lg">
             <span>{toastMsg}</span>
             <button onClick={() => setToastMsg('')} className="text-emerald-400 hover:text-white font-bold">✕</button>
+          </div>
+        )}
+
+        {/* Signed-in user identity or Guest sign-in callout */}
+        {isLoggedIn ? (
+          <div className="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow">
+                {currentUser?.name?.charAt(0) || '👤'}
+              </div>
+              <div>
+                <div className="font-bold text-white flex items-center gap-2">
+                  <span>Logged in as: {currentUser?.name || profile.employeeName}</span>
+                  <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                    Authenticated
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono flex items-center gap-2 mt-0.5">
+                  <span>{currentUser?.email || profile.email}</span>
+                  {currentUser?.id && (
+                    <>
+                      <span>•</span>
+                      <span className="text-sky-400">UUID: {currentUser.id.substring(0, 13)}...</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-400">
+              Personalized records isolated to your account in Neon DB.
+            </div>
+          </div>
+        ) : (
+          <div className="bg-sky-950/50 border border-sky-800/80 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-lg">
+            <div className="space-y-1">
+              <div className="font-bold text-sm text-sky-200 flex items-center gap-2">
+                <span>🔒 Signed Out (Viewing Default Preview)</span>
+              </div>
+              <p className="text-xs text-slate-300">
+                Sign in with Google, GitHub, or Email to view and save your personal employee profile in Neon DB.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(true)}
+              className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all whitespace-nowrap flex items-center gap-2"
+            >
+              <span>🔑</span>
+              <span>Sign In / Register</span>
+            </button>
           </div>
         )}
 
@@ -406,7 +476,7 @@ export default function ProfilePage() {
             <button
               type="submit"
               disabled={saving}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm px-8 py-3.5 rounded-xl shadow-lg transition-all"
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm px-8 py-3.5 rounded-xl shadow-lg transition-all disabled:opacity-60"
             >
               {saving ? 'Saving to Neon DB...' : '💾 Save Profile to Neon DB (PostgreSQL)'}
             </button>
@@ -414,6 +484,16 @@ export default function ProfilePage() {
         </form>
 
       </main>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onLoginSuccess={() => {
+          loadProfile();
+          setAuthModalOpen(false);
+        }}
+      />
     </div>
   );
 }

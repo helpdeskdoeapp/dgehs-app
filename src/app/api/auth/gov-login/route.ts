@@ -25,9 +25,12 @@ export async function POST(request: Request) {
       profileData = await upsertNeonUserProfile(parsed.email, { employeeName: name.toUpperCase() });
     }
 
+    const userUuid = crypto.randomUUID();
     const sessionPayload = {
       isLoggedIn: true,
+      userId: userUuid,
       email: parsed.email,
+      name: profileData?.employeeName || name || `${parsed.firstName} Kumar`,
       employeeId: profileData?.employeeId || parsed.employeeId,
       firstName: parsed.firstName,
       profile: profileData

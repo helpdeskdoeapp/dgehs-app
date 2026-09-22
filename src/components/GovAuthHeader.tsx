@@ -149,13 +149,18 @@ export default function GovAuthHeader({
   };
 
   const liveParsed = emailInput ? parseGovEmail(emailInput) : { isValid: false, employeeId: '' };
-  const isAuthenticated = sessionStatus === 'authenticated' || (customSession && customSession.isLoggedIn);
-  const userObj = sessionData?.user || (customSession ? {
-    name: customSession.profile?.employeeName || `${customSession.firstName || 'Gov'} Official`,
-    email: customSession.email,
-    employeeId: customSession.employeeId,
+  const isAuthenticated = sessionStatus === 'authenticated' || !!(customSession && customSession.isLoggedIn);
+  const userObj = sessionData?.user || (customSession?.user ? {
+    name: customSession.profile?.employeeName || customSession.user.name || 'Gov Official',
+    email: customSession.user.email || customSession.email,
+    employeeId: customSession.profile?.employeeId || customSession.employeeId || customSession.user.id?.substring(0, 8),
+    image: customSession.user.image || null
+  } : (customSession?.profile ? {
+    name: customSession.profile.employeeName || 'Gov Official',
+    email: customSession.profile.email,
+    employeeId: customSession.profile.employeeId,
     image: null
-  } : null);
+  } : null));
 
   return (
     <div className="no-print bg-slate-900 border-b border-slate-800 text-white p-4">

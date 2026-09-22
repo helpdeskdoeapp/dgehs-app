@@ -8,6 +8,20 @@ export interface ParsedGovEmail {
   errorMessage?: string;
 }
 
+export interface AuthenticatedUser {
+  id: string; // Unique UUID
+  email: string;
+  name: string;
+  image: string | null;
+}
+
+export interface UserSessionResult {
+  isLoggedIn: boolean;
+  user: AuthenticatedUser | null;
+  profile?: CommonProfile | null;
+  source?: 'nextauth' | 'cookie' | null;
+}
+
 export function parseGovEmail(emailStr: string): ParsedGovEmail {
   const cleanEmail = (emailStr || '').trim().toLowerCase();
 
@@ -45,7 +59,6 @@ export function parseGovEmail(emailStr: string): ParsedGovEmail {
     }
   } else {
     // Standard user email (e.g., john.doe@gmail.com)
-    // Deterministically generate a 5-digit employee ID from the email
     let hash = 0;
     for (let i = 0; i < cleanEmail.length; i++) {
       hash = ((hash << 5) - hash) + cleanEmail.charCodeAt(i);

@@ -1,54 +1,50 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getNeonUserClaims, saveNeonUserClaim } from '@/lib/neon';
+import { getCurrentUserSession } from '@/lib/auth-server';
 
 export const dynamic = 'force-dynamic';
 
-const DEFAULT_EMAIL = '98241.rajesh@doe.delhi.gov.in';
-
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('dgehs_session');
-    let email = DEFAULT_EMAIL;
+    const auth = await getCurrentUserSession();
 
-    if (sessionCookie && sessionCookie.value) {
-      try {
-        const session = JSON.parse(sessionCookie.value);
-        if (session.email) email = session.email;
-      } catch (e) {
-        // fallback
-      }
+    if (!auth.isLoggedIn || !auth.user?.email) {
+      return NextResponse.json({
+        success: true,
+        isLoggedIn: false,
+        count: 0,
+        data: []
+      });
     }
 
-    const claims = await getNeonUserClaims(email);
+    const claims = await getNeonUserClaims(auth.user.email);
     return NextResponse.json({
       success: true,
+      isLoggedIn: true,
       count: claims.length,
       data: claims
     });
   } catch (error) {
-    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: (error as Error).message },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('dgehs_session');
-    let email = DEFAULT_EMAIL;
+    const auth = await getCurrentUserSession();
 
-    if (sessionCookie && sessionCookie.value) {
-      try {
-        const session = JSON.parse(sessionCookie.value);
-        if (session.email) email = session.email;
-      } catch (e) {
-        // fallback
-      }
+    if (!auth.isLoggedIn || !auth.user?.email) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required. Please sign in to save or submit claims.' },
+        { status: 401 }
+      );
     }
 
     const { claimId, title, status, formData } = await request.json();
-    const claim = await saveNeonUserClaim(email, { claimId, title, status, formData });
+    const claim = await saveNeonUserClaim(auth.user.email, { claimId, title, status, formData });
 
     return NextResponse.json({
       success: true,
@@ -56,6 +52,9 @@ export async function POST(request: Request) {
       data: claim
     });
   } catch (error) {
-    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: (error as Error).message },
+      { status: 500 }
+    );
   }
 }

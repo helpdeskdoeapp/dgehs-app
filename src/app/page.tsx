@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar';
 import FormRenderer from '@/components/FormRenderer';
 import { CommonProfile, CompleteFormData } from '@/types/form';
 import CGHSCodePicker from '@/components/CGHSCodePicker';
+import AuthModal from '@/components/AuthModal';
 
 export default function HomePage() {
   const [profile, setProfile] = useState<CommonProfile | null>(null);
@@ -13,17 +14,26 @@ export default function HomePage() {
   const [loadingClaims, setLoadingClaims] = useState(true);
   const [activeClaimForPreview, setActiveClaimForPreview] = useState<CompleteFormData | null>(null);
   const [toastMsg, setToastMsg] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ email?: string; name?: string; id?: string; image?: string | null } | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Rate search widget state
   const [selectedRate, setSelectedRate] = useState<any>(null);
 
-  useEffect(() => {
+  const loadData = () => {
     // Fetch profile
     fetch('/api/profile')
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && json.data) {
-          setProfile(json.data);
+        if (json.success) {
+          setIsLoggedIn(!!json.isLoggedIn);
+          if (json.user) {
+            setCurrentUser(json.user);
+          }
+          if (json.data) {
+            setProfile(json.data);
+          }
         }
       })
       .catch((e) => console.error('Failed fetching profile', e));
@@ -34,10 +44,23 @@ export default function HomePage() {
       .then((json) => {
         if (json.success && json.data) {
           setClaims(json.data);
+        } else {
+          setClaims([]);
         }
       })
       .catch((e) => console.error('Failed fetching claims', e))
       .finally(() => setLoadingClaims(false));
+  };
+
+  useEffect(() => {
+    loadData();
+
+    window.addEventListener('focus', loadData);
+    window.addEventListener('dgehs-session-changed', loadData);
+    return () => {
+      window.removeEventListener('focus', loadData);
+      window.removeEventListener('dgehs-session-changed', loadData);
+    };
   }, []);
 
   const handlePrintClaim = (claim: any) => {
@@ -289,6 +312,16 @@ export default function HomePage() {
         )}
 
       </main>
+
+      {/* Sign-in Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onLoginSuccess={() => {
+          loadData();
+          setAuthModalOpen(false);
+        }}
+      />
     </div>
   );
 }
