@@ -58,10 +58,14 @@ export async function POST(request: Request) {
     }
 
     const savedProfile = await upsertNeonUserProfile(email, updatedProfile);
+    const hasDbUrl = !!process.env.DATABASE_URL || !!process.env.POSTGRES_URL || !!process.env.NEON_DATABASE_URL;
 
     return NextResponse.json({
       success: true,
-      message: 'Employee profile updated in Neon DB (PostgreSQL)!',
+      storage: hasDbUrl ? 'Neon DB (PostgreSQL - user_profiles table)' : 'Local JSON Fallback',
+      message: hasDbUrl
+        ? 'Employee profile saved successfully to Neon DB (user_profiles table)!'
+        : 'Employee profile saved locally (DATABASE_URL not configured).',
       data: savedProfile
     });
   } catch (error) {

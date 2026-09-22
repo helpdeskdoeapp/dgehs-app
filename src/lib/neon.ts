@@ -35,6 +35,55 @@ export function getNeonClient(): NeonQueryFunction<false, false> | null {
   return neon(connStr);
 }
 
+export async function checkNeonConnection() {
+  const connStr = getDatabaseUrl();
+  if (!connStr) {
+    return {
+      connected: false,
+      storage: 'Local Fallback',
+      message: 'DATABASE_URL or POSTGRES_URL environment variable is not configured.',
+    };
+  }
+
+  const sql = getNeonClient();
+  if (!sql) {
+    return {
+      connected: false,
+      storage: 'Local Fallback',
+      message: 'Failed to initialize Neon client with provided connection string.',
+    };
+  }
+
+  const start = Date.now();
+  try {
+    await ensureNeonSchema();
+    const result = await sql`SELECT version(), current_database(), NOW() as server_time;`;
+    const latency = Date.now() - start;
+
+    const userCount = await sql`SELECT count(*)::int as count FROM user_profiles;`;
+    const claimCount = await sql`SELECT count(*)::int as count FROM claims;`;
+
+    return {
+      connected: true,
+      storage: 'Neon PostgreSQL',
+      database: result[0]?.current_database || 'neondb',
+      serverTime: result[0]?.server_time,
+      version: result[0]?.version,
+      latencyMs: latency,
+      tables: {
+        user_profiles: userCount[0]?.count ?? 0,
+        claims: claimCount[0]?.count ?? 0,
+      }
+    };
+  } catch (err: any) {
+    return {
+      connected: false,
+      storage: 'Local Fallback',
+      error: err.message,
+    };
+  }
+}
+
 export async function ensureNeonSchema(): Promise<void> {
   if (schemaInitialized) return;
   const sql = getNeonClient();

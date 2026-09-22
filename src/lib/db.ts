@@ -59,19 +59,6 @@ class NoSqlFileDB {
   private data: NoSqlSchema | null = null;
 
   private initializeDb(): NoSqlSchema {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-
-    if (fs.existsSync(NOSQL_DB_FILE)) {
-      try {
-        const raw = fs.readFileSync(NOSQL_DB_FILE, 'utf8');
-        return JSON.parse(raw);
-      } catch (err) {
-        console.error('Error reading NoSQL DB file, re-indexing...', err);
-      }
-    }
-
     let items: RateItem[] = [];
     if (fs.existsSync(RATELIST_FILE)) {
       try {
@@ -80,6 +67,15 @@ class NoSqlFileDB {
         items = parsed.rateListArray || [];
       } catch (e) {
         console.error('Failed reading ratelist.json for DB seed', e);
+      }
+    }
+
+    if (fs.existsSync(NOSQL_DB_FILE)) {
+      try {
+        const raw = fs.readFileSync(NOSQL_DB_FILE, 'utf8');
+        return JSON.parse(raw);
+      } catch (err) {
+        // Fall through to default initialization
       }
     }
 
@@ -92,10 +88,14 @@ class NoSqlFileDB {
       mockProfile: DEFAULT_MOCK_PROFILE
     };
 
+    // Attempt writing cache to disk only if writeable (ignored in read-only serverless runtimes)
     try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
       fs.writeFileSync(NOSQL_DB_FILE, JSON.stringify(schema, null, 2), 'utf8');
-    } catch (e) {
-      console.error('Failed writing NoSQL DB file', e);
+    } catch {
+      // In serverless / read-only filesystem (e.g. Vercel), hold in memory
     }
 
     return schema;
@@ -136,8 +136,9 @@ class NoSqlFileDB {
     db.mockProfile = profile;
     try {
       fs.writeFileSync(NOSQL_DB_FILE, JSON.stringify(db, null, 2), 'utf8');
-    } catch (e) {
-      console.error('Failed updating profile in NoSQL DB', e);
+    } catch {
+      // In serverless environments (Vercel / AWS Lambda), the filesystem is read-only
+      // In-memory update is preserved for the lifecycle of the warm instance
     }
     return db.mockProfile;
   }

@@ -35,6 +35,18 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<CommonProfile>(DEFAULT_PROFILE);
   const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [dbStatus, setDbStatus] = useState<{ connected: boolean; storage: string; latencyMs?: number; tables?: any; message?: string } | null>(null);
+
+  const fetchDbStatus = () => {
+    fetch('/api/db-status')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          setDbStatus(json.data);
+        }
+      })
+      .catch((e) => console.error('Failed fetching db status', e));
+  };
 
   useEffect(() => {
     fetch('/api/profile')
@@ -45,6 +57,8 @@ export default function ProfilePage() {
         }
       })
       .catch((e) => console.error('Failed fetching profile', e));
+
+    fetchDbStatus();
   }, []);
 
   const handleChange = (field: keyof CommonProfile, value: string) => {
@@ -62,11 +76,16 @@ export default function ProfilePage() {
       });
       const json = await res.json();
       if (json.success) {
-        setToastMsg('Employee profile saved to Neon DB (PostgreSQL) successfully! Future claim forms will auto-fill with these details.');
-        setTimeout(() => setToastMsg(''), 5000);
+        const dest = json.storage || 'Neon DB';
+        setToastMsg(`✅ Profile saved to ${dest} successfully! Table: user_profiles.`);
+        fetchDbStatus();
+        setTimeout(() => setToastMsg(''), 6000);
+      } else {
+        setToastMsg(`⚠️ Error: ${json.error || 'Failed to save'}`);
       }
     } catch (e) {
       console.error('Failed saving profile to Neon DB', e);
+      setToastMsg('⚠️ Network error while saving profile.');
     } finally {
       setSaving(false);
     }
@@ -81,28 +100,44 @@ export default function ProfilePage() {
         {/* Page Header Banner */}
         <div className="bg-gradient-to-r from-sky-950 via-slate-900 to-indigo-950 p-6 rounded-2xl border border-slate-800 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/20 text-sky-300 text-xs font-semibold mb-2">
-              <span>👤 Employee Profile Management</span>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="px-3 py-1 rounded-full bg-sky-500/20 text-sky-300 text-xs font-semibold">
+                👤 Employee Profile Management
+              </span>
+              {dbStatus && (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
+                    dbStatus.connected
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                      : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${dbStatus.connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                  {dbStatus.connected
+                    ? `Neon PostgreSQL Connected (${dbStatus.latencyMs}ms)`
+                    : 'Local DB Fallback (Add DATABASE_URL)'}
+                </span>
+              )}
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white">Static Profile &amp; Default Claim Information</h1>
             <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-              Save your official DGEHS details here. Information saved in Neon DB will automatically prefill every new 5-form medical claim application!
+              Save your official DGEHS details here. Information saved in Neon DB (`user_profiles` table) will automatically prefill every new 5-form medical claim application!
             </p>
           </div>
 
           <button
             onClick={handleSaveToNeon}
             disabled={saving}
-            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap disabled:opacity-60"
           >
-            {saving ? 'Saving...' : '💾 Save Profile to Neon DB'}
+            {saving ? 'Saving to Neon DB...' : '💾 Save Profile to Neon DB'}
           </button>
         </div>
 
         {toastMsg && (
-          <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs font-semibold px-4 py-3 rounded-xl flex items-center justify-between animate-fadeIn">
-            <span>✅ {toastMsg}</span>
-            <button onClick={() => setToastMsg('')} className="text-emerald-400">✕</button>
+          <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs font-semibold px-4 py-3 rounded-xl flex items-center justify-between animate-fadeIn shadow-lg">
+            <span>{toastMsg}</span>
+            <button onClick={() => setToastMsg('')} className="text-emerald-400 hover:text-white font-bold">✕</button>
           </div>
         )}
 
