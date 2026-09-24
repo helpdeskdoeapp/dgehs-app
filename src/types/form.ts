@@ -1,4 +1,5 @@
 export interface CommonProfile {
+  id?: string;
   employeeName: string;
   employeeId: string;
   employeeCode: string;
@@ -14,7 +15,7 @@ export interface CommonProfile {
   email: string;
   basicPay: string;
   payLevel: string;
-  entitlement: 'Pvt.' | 'Semi Pvt.' | 'General';
+  entitlement: 'Pvt.' | 'Semi Pvt.' | 'General' | 'N/A' | string;
   status: 'Govt. Servant' | 'Pensioner' | 'Other';
   bankName: string;
   bankBranch: string;
@@ -24,8 +25,18 @@ export interface CommonProfile {
   bankPhone: string;
 }
 
+export interface DependentProfile {
+  id?: string;
+  userId?: string;
+  name: string;
+  relation: 'Self' | 'Wife' | 'Husband' | 'Spouse' | 'Son' | 'Daughter' | 'Father' | 'Mother' | 'Brother' | 'Sister' | 'Other' | string;
+  dob: string;
+  gender: 'Male' | 'Female' | 'Other' | string;
+}
+
 export interface PatientRow {
   sNo: number;
+  included?: boolean;
   name: string;
   relation: string;
   hospitalName: string;
@@ -130,6 +141,7 @@ export interface Form5Data {
 
 export interface CompleteFormData {
   profile: CommonProfile;
+  dependents?: DependentProfile[];
   form1: Form1Data;
   form2: Form2Data;
   form3: Form3Data;

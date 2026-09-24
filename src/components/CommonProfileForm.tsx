@@ -3,16 +3,20 @@
 import React, { useState } from 'react';
 import { CommonProfile } from '@/types/form';
 import DatePicker from './DatePicker';
+import { showSuccessAlert, showErrorAlert } from '@/lib/alerts';
 
 interface CommonProfileFormProps {
   profile: CommonProfile;
   onChange: (profile: CommonProfile) => void;
   onNext: () => void;
+  onSave?: () => void;
+  isSaving?: boolean;
 }
 
-export default function CommonProfileForm({ profile, onChange, onNext }: CommonProfileFormProps) {
+const PAY_LEVELS = Array.from({ length: 18 }, (_, i) => `Level ${i + 1}`);
+
+export default function CommonProfileForm({ profile, onChange, onNext, onSave, isSaving }: CommonProfileFormProps) {
   const [loadingApi, setLoadingApi] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
 
   const handleChange = (field: keyof CommonProfile, value: string) => {
     onChange({
@@ -28,11 +32,13 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
       const json = await res.json();
       if (json.success && json.data) {
         onChange(json.data);
-        setToastMsg('Loaded employee profile from API database!');
-        setTimeout(() => setToastMsg(''), 4000);
+        showSuccessAlert('Profile Loaded', 'Employee profile loaded successfully from database!');
+      } else {
+        showErrorAlert('Notice', 'No existing profile found in database.');
       }
     } catch (e) {
       console.error('Failed to fetch profile', e);
+      showErrorAlert('Error', 'Failed to fetch employee profile from database.');
     } finally {
       setLoadingApi(false);
     }
@@ -52,26 +58,18 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleFetchFromApi}
-          disabled={loadingApi}
-          className="bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-xs px-5 py-3 rounded-xl shadow-lg hover:shadow-sky-500/20 transition-all flex items-center gap-2"
-        >
-          {loadingApi ? (
-            <span className="animate-spin">⏳</span>
-          ) : (
-            <span>✨ Load Sample Profile from API</span>
-          )}
-        </button>
+        {onSave && (
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={onSave}
+            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0"
+          >
+            <span>{isSaving ? '⏳' : '💾'}</span>
+            <span>{isSaving ? 'Saving to DB...' : 'Save Profile & Progress'}</span>
+          </button>
+        )}
       </div>
-
-      {toastMsg && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 text-xs font-semibold px-4 py-3 rounded-xl flex items-center justify-between animate-fadeIn">
-          <span>{toastMsg}</span>
-          <button onClick={() => setToastMsg('')} className="text-emerald-500 hover:text-emerald-800">✕</button>
-        </div>
-      )}
 
       {/* Personal & Official Details */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-slate-900">
@@ -105,8 +103,8 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
             <input
               type="text"
               value={profile.employeeName}
-              onChange={(e) => handleChange('employeeName', e.target.value)}
-              placeholder="Full name..."
+              onChange={(e) => handleChange('employeeName', e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
+              placeholder="Only alphabets"
               className="w-full p-2.5 text-xs font-bold text-slate-900 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none uppercase"
             />
           </div>
@@ -118,7 +116,8 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
             <input
               type="text"
               value={profile.employeeId}
-              onChange={(e) => handleChange('employeeId', e.target.value)}
+              onChange={(e) => handleChange('employeeId', e.target.value.replace(/\D/g, ''))}
+              placeholder="Digits only"
               className="w-full p-2.5 text-xs text-slate-900 bg-white border border-slate-300 rounded-lg"
             />
           </div>
@@ -127,7 +126,8 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
             <input
               type="text"
               value={profile.employeeCode}
-              onChange={(e) => handleChange('employeeCode', e.target.value)}
+              onChange={(e) => handleChange('employeeCode', e.target.value.replace(/\D/g, ''))}
+              placeholder="Digits only"
               className="w-full p-2.5 text-xs text-slate-900 bg-white border border-slate-300 rounded-lg"
             />
           </div>
@@ -173,8 +173,8 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Ward Entitlement</label>
-            <div className="flex gap-4 pt-2 text-xs font-medium text-slate-800">
-              {(['Pvt.', 'Semi Pvt.', 'General'] as const).map((ward) => (
+            <div className="flex flex-wrap gap-3.5 pt-2 text-xs font-medium text-slate-800">
+              {(['Pvt.', 'Semi Pvt.', 'General', 'N/A'] as const).map((ward) => (
                 <label key={ward} className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="radio"
@@ -182,7 +182,7 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
                     value={ward}
                     checked={profile.entitlement === ward}
                     onChange={() => handleChange('entitlement', ward)}
-                    className="accent-sky-600"
+                    className="accent-sky-600 cursor-pointer"
                   />
                   {ward}
                 </label>
@@ -197,20 +197,25 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
             <input
               type="text"
               value={profile.basicPay}
-              onChange={(e) => handleChange('basicPay', e.target.value)}
-              placeholder="e.g. 78800"
+              onChange={(e) => handleChange('basicPay', e.target.value.replace(/\D/g, ''))}
+              placeholder="Digits only"
               className="w-full p-2.5 text-xs text-slate-900 bg-white border border-slate-300 rounded-lg"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Pay Level</label>
-            <input
-              type="text"
+            <select
               value={profile.payLevel}
               onChange={(e) => handleChange('payLevel', e.target.value)}
-              placeholder="e.g. Level 10"
               className="w-full p-2.5 text-xs text-slate-900 bg-white border border-slate-300 rounded-lg"
-            />
+            >
+              <option value="">Select Pay Level</option>
+              {PAY_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {level}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -231,7 +236,7 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
           2. Contact &amp; Bank Details
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Mobile No.</label>
             <input
@@ -242,7 +247,9 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Telephone (Office)</label>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Telephone (Office) <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
             <input
               type="text"
               value={profile.phoneOffice}
@@ -251,20 +258,13 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Telephone (Residence)</label>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Telephone (Residence) <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
             <input
               type="text"
               value={profile.phoneRes}
               onChange={(e) => handleChange('phoneRes', e.target.value)}
-              className="w-full p-2.5 text-xs text-slate-900 bg-white border border-slate-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">E-Mail Address</label>
-            <input
-              type="email"
-              value={profile.email}
-              onChange={(e) => handleChange('email', e.target.value)}
               className="w-full p-2.5 text-xs text-slate-900 bg-white border border-slate-300 rounded-lg"
             />
           </div>
@@ -320,7 +320,9 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Bank Branch Tel. No.</label>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Bank Branch Tel. No. <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
             <input
               type="text"
               value={profile.bankPhone}
@@ -331,7 +333,21 @@ export default function CommonProfileForm({ profile, onChange, onNext }: CommonP
         </div>
       </div>
 
-      <div className="flex justify-end pt-4">
+      <div className="flex justify-between items-center pt-4">
+        {onSave ? (
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={onSave}
+            className="border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-700 font-semibold text-xs px-5 py-3 rounded-xl transition-all flex items-center gap-2"
+          >
+            <span>{isSaving ? '⏳' : '💾'}</span>
+            <span>{isSaving ? 'Saving...' : 'Save Draft & Progress'}</span>
+          </button>
+        ) : (
+          <div></div>
+        )}
+
         <button
           type="button"
           onClick={onNext}

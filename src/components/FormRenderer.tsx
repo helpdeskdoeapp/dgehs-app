@@ -22,14 +22,117 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
     }
   };
 
-  const dash = (s?: string) => (s && s.trim().length > 0 ? s : '_______________________');
+  const dash = (s?: string) => (s && s.trim().length > 0 ? s : '_______________');
 
   const fmtDate = (s?: string) => {
-    if (!s) return '.......................';
-    const d = new Date(s + 'T00:00:00');
-    if (isNaN(d.getTime())) return s;
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (!s || !s.trim()) return '.......................';
+    const trimmed = s.trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) return trimmed;
+    const parts = trimmed.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      const [y, m, d] = parts;
+      return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+    }
+    const d = new Date(trimmed + 'T00:00:00');
+    if (isNaN(d.getTime())) return trimmed;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
   };
+
+  // Active/Checked patients from Form 1 Claim Details Table
+  const activePatients = form1.patients.filter(
+    (p) => p.included !== false && (p.name?.trim() || p.relation?.trim())
+  );
+
+  const totalConsultation = activePatients.reduce(
+    (sum, p) => sum + (parseFloat(p.consultationAmount) || 0),
+    0
+  );
+  const totalInvestigation = activePatients.reduce(
+    (sum, p) => sum + (parseFloat(p.investigationAmount) || 0),
+    0
+  );
+  const totalMedicine = activePatients.reduce(
+    (sum, p) => sum + (parseFloat(p.medicineAmount) || 0),
+    0
+  );
+  const totalOther = activePatients.reduce(
+    (sum, p) => sum + (parseFloat(p.otherAmount) || 0),
+    0
+  );
+  const totalClaimed = activePatients.reduce((sum, p) => {
+    const claimed = parseFloat(p.claimedAmount);
+    if (!isNaN(claimed) && claimed > 0) return sum + claimed;
+    const c = parseFloat(p.consultationAmount) || 0;
+    const i = parseFloat(p.investigationAmount) || 0;
+    const m = parseFloat(p.medicineAmount) || 0;
+    const o = parseFloat(p.otherAmount) || 0;
+    return sum + c + i + m + o;
+  }, 0);
+
+  const isPureIndoor =
+    (form1.indoorAdmissionDate?.trim() || form1.indoorDischargeDate?.trim()) &&
+    !form1.opdFromDate?.trim() &&
+    !form1.opdToDate?.trim();
+
+  // If active patients have amounts entered in claim summary table, use them to prefill Annexure-II
+  const hasClaimTableData = totalConsultation > 0 || totalInvestigation > 0 || totalMedicine > 0 || totalOther > 0 || totalClaimed > 0;
+
+  const opdConsultationDisp = isPureIndoor
+    ? '0'
+    : hasClaimTableData
+      ? totalConsultation.toString()
+      : (form4.opdConsultation && form4.opdConsultation !== '700' ? form4.opdConsultation : '0');
+
+  const opdInvestigationDisp = isPureIndoor
+    ? '0'
+    : hasClaimTableData
+      ? totalInvestigation.toString()
+      : (form4.opdInvestigation && form4.opdInvestigation !== '2600' ? form4.opdInvestigation : '0');
+
+  const opdMedicineDisp = isPureIndoor
+    ? '0'
+    : hasClaimTableData
+      ? totalMedicine.toString()
+      : (form4.opdMedicine && form4.opdMedicine !== '1200' ? form4.opdMedicine : '0');
+
+  const opdOtherDisp = isPureIndoor
+    ? '0'
+    : hasClaimTableData
+      ? totalOther.toString()
+      : (form4.opdOther || '0');
+
+  const indoorConsultationDisp = isPureIndoor
+    ? (hasClaimTableData ? totalConsultation.toString() : (form4.indoorConsultation && form4.indoorConsultation !== '700' ? form4.indoorConsultation : '0'))
+    : (form4.indoorConsultation && form4.indoorConsultation !== '700' && form4.indoorConsultation !== '0' ? form4.indoorConsultation : '0');
+
+  const indoorInvestigationDisp = isPureIndoor
+    ? (hasClaimTableData ? totalInvestigation.toString() : (form4.indoorInvestigation && form4.indoorInvestigation !== '3000' ? form4.indoorInvestigation : '0'))
+    : (form4.indoorInvestigation && form4.indoorInvestigation !== '3000' && form4.indoorInvestigation !== '0' ? form4.indoorInvestigation : '0');
+
+  const indoorMedicineDisp = isPureIndoor
+    ? (hasClaimTableData ? totalMedicine.toString() : (form4.indoorMedicine && form4.indoorMedicine !== '2800' ? form4.indoorMedicine : '0'))
+    : (form4.indoorMedicine && form4.indoorMedicine !== '2800' && form4.indoorMedicine !== '0' ? form4.indoorMedicine : '0');
+
+  const indoorOtherDisp = isPureIndoor
+    ? (hasClaimTableData ? totalOther.toString() : (form4.indoorOther || '0'))
+    : (form4.indoorOther && form4.indoorOther !== '0' ? form4.indoorOther : '0');
+
+  // Form 5 Calculation Sheet Totals
+  const totalCalcCharged = form5.calcRows.reduce(
+    (sum, r) => sum + (parseFloat(r.rateCharged) || 0),
+    0
+  );
+  const totalCalcApproved = form5.calcRows.reduce(
+    (sum, r) => sum + (parseFloat(r.approvedRate) || 0),
+    0
+  );
+  const totalCalcRestricted = form5.calcRows.reduce(
+    (sum, r) => sum + (parseFloat(r.restrictedClaim) || 0),
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -79,34 +182,46 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
           <div className="text-right text-xs font-mono font-bold mb-1">DGEHS Card No: {dash(profile.cardNo)}</div>
           <h1 className="text-center text-xl font-bold underline mb-6 tracking-wide">Medical Application Form</h1>
 
-          <div className="space-y-2.5">
-            <div className="flex">
-              <span className="w-1/2">1. Employee ID No: <strong>{dash(profile.employeeId)}</strong></span>
-              <span className="w-1/2">Employee Code No: <strong>{dash(profile.employeeCode)}</strong></span>
+          <div className="space-y-3 text-[12.5px]">
+            {/* 1. Employee ID & Code */}
+            <div className="grid grid-cols-2 gap-x-8">
+              <div>1. Employee ID No: <strong>{dash(profile.employeeId)}</strong></div>
+              <div>Employee Code No: <strong>{dash(profile.employeeCode)}</strong></div>
             </div>
 
-            <div className="flex">
-              <span className="w-1/2">2. Name of official: <strong>{dash(profile.employeeName)}</strong></span>
-              <span className="w-1/2">Designation: <strong>{dash(profile.designation)}</strong></span>
+            {/* 2. Official Name & Designation */}
+            <div className="grid grid-cols-2 gap-x-8">
+              <div>2. Name of official: <strong>{dash(profile.employeeName)}</strong></div>
+              <div>Designation: <strong>{dash(profile.designation)}</strong></div>
             </div>
 
-            <div className="flex">
-              <span className="w-1/2">3. Basic Pay Rs: <strong>{dash(profile.basicPay)}</strong></span>
-              <span className="w-1/2">Pay Level: <strong>{dash(profile.payLevel)}</strong></span>
+            {/* 3. Basic Pay & Pay Level */}
+            <div className="grid grid-cols-2 gap-x-8">
+              <div>3. Basic Pay Rs: <strong>{dash(profile.basicPay)}</strong></div>
+              <div>Pay Level: <strong>{dash(profile.payLevel)}</strong></div>
             </div>
 
-            <div>
-              4. Residence Address: <strong>{dash(profile.residenceAddress)}</strong> PH: <strong>{dash(profile.phoneMobile)}</strong>
+            {/* 4. Residence Address & Contact Numbers */}
+            <div className="space-y-1">
+              <div>
+                4. Residence Address: <strong>{dash(profile.residenceAddress)}</strong>
+              </div>
+              <div className="grid grid-cols-2 gap-x-8 pl-4 text-[12px]">
+                <div>Phone No. (Mobile): <strong>{dash(profile.phoneMobile)}</strong></div>
+                <div>Phone No. (Office): <strong>{dash(profile.phoneOffice || profile.phoneRes)}</strong></div>
+              </div>
             </div>
 
-            <div className="flex pt-1">
-              <span className="w-1/2">5. OPD period of treatment: From Date: <strong>{fmtDate(form1.opdFromDate)}</strong></span>
-              <span className="w-1/2">to date: <strong>{fmtDate(form1.opdToDate)}</strong></span>
+            {/* 5. OPD Treatment Period */}
+            <div className="grid grid-cols-2 gap-x-8 pt-0.5">
+              <div>5. OPD period of treatment: From: <strong>{fmtDate(form1.opdFromDate)}</strong></div>
+              <div>To Date: <strong>{fmtDate(form1.opdToDate)}</strong></div>
             </div>
 
-            <div className="flex pb-2">
-              <span className="w-1/2">6. Indoor period of treatment: From Date of admission: <strong>{fmtDate(form1.indoorAdmissionDate)}</strong></span>
-              <span className="w-1/2">Date of discharge: <strong>{fmtDate(form1.indoorDischargeDate)}</strong></span>
+            {/* 6. Indoor Treatment Period */}
+            <div className="grid grid-cols-2 gap-x-8 pb-1">
+              <div>6. Indoor period of treatment: Admission: <strong>{fmtDate(form1.indoorAdmissionDate)}</strong></div>
+              <div>Date of Discharge: <strong>{fmtDate(form1.indoorDischargeDate)}</strong></div>
             </div>
           </div>
 
@@ -126,19 +241,39 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
               </tr>
             </thead>
             <tbody>
-              {form1.patients.map((p, idx) => (
-                <tr key={idx}>
-                  <td className="border border-slate-400 p-1.5 text-center">{idx + 1}</td>
-                  <td className="border border-slate-400 p-1.5">{p.name || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5">{p.relation || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5">{p.hospitalName || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5">{p.consultationAmount || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5">{p.investigationAmount || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5">{p.otherAmount || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5">{p.medicineAmount || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5 font-bold">{p.claimedAmount || '\u00A0'}</td>
-                </tr>
-              ))}
+              {(() => {
+                const activePatients = form1.patients.filter(
+                  (p) => p.included !== false && (p.name?.trim() || p.relation?.trim())
+                );
+                if (activePatients.length > 0) {
+                  return activePatients.map((p, idx) => (
+                    <tr key={idx}>
+                      <td className="border border-slate-400 p-1.5 text-center">{idx + 1}</td>
+                      <td className="border border-slate-400 p-1.5">{p.name || '\u00A0'}</td>
+                      <td className="border border-slate-400 p-1.5">{p.relation || '\u00A0'}</td>
+                      <td className="border border-slate-400 p-1.5">{p.hospitalName || '\u00A0'}</td>
+                      <td className="border border-slate-400 p-1.5">{p.consultationAmount || '\u00A0'}</td>
+                      <td className="border border-slate-400 p-1.5">{p.investigationAmount || '\u00A0'}</td>
+                      <td className="border border-slate-400 p-1.5">{p.otherAmount || '\u00A0'}</td>
+                      <td className="border border-slate-400 p-1.5">{p.medicineAmount || '\u00A0'}</td>
+                      <td className="border border-slate-400 p-1.5 font-bold">{p.claimedAmount || '\u00A0'}</td>
+                    </tr>
+                  ));
+                }
+                return (
+                  <tr>
+                    <td className="border border-slate-400 p-1.5 text-center">1</td>
+                    <td className="border border-slate-400 p-1.5">{profile.employeeName}</td>
+                    <td className="border border-slate-400 p-1.5">Self</td>
+                    <td className="border border-slate-400 p-1.5">&nbsp;</td>
+                    <td className="border border-slate-400 p-1.5">&nbsp;</td>
+                    <td className="border border-slate-400 p-1.5">&nbsp;</td>
+                    <td className="border border-slate-400 p-1.5">&nbsp;</td>
+                    <td className="border border-slate-400 p-1.5">&nbsp;</td>
+                    <td className="border border-slate-400 p-1.5">&nbsp;</td>
+                  </tr>
+                );
+              })()}
             </tbody>
           </table>
 
@@ -161,21 +296,22 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
             <div>Dated: <strong>{fmtDate(form1.dated)}</strong></div>
             <div className="font-bold border-t border-slate-400 pt-1 px-4">Signature of the official</div>
           </div>
-
-          <div className="page-number-tag">Page 1 of 5 (Form 1)</div>
         </div>
 
 
         {/* ==================== PAGE 2: Undertaking ==================== */}
         {(() => {
-          const totalForm1Amount = form1.patients.reduce((sum, p) => {
+          const activePatients = form1.patients.filter(
+            (p) => p.included !== false && (p.name?.trim() || p.relation?.trim())
+          );
+          const totalForm1Amount = activePatients.reduce((sum, p) => {
             const val = parseFloat(p.claimedAmount);
             return sum + (isNaN(val) ? 0 : val);
           }, 0);
           const finalAmount = (form2.reimbursementAmount && form2.reimbursementAmount !== '0')
             ? form2.reimbursementAmount
             : (totalForm1Amount > 0 ? totalForm1Amount.toString() : '');
-          const derivedMembers = form1.patients.map((p) => `${p.name} (${p.relation})`);
+          const derivedMembers = activePatients.map((p) => `${p.name} (${p.relation})`);
           const m1 = derivedMembers[0] || form2.familyMembers[0] || `${profile.employeeName} (Self)`;
           const m2 = derivedMembers[1] || form2.familyMembers[1] || '';
           const m3 = derivedMembers[2] || form2.familyMembers[2] || '';
@@ -214,7 +350,6 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
                 </div>
               </div>
 
-              <div className="page-number-tag">Page 2 of 5 (Form 2)</div>
             </div>
           );
         })()}
@@ -231,15 +366,12 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
 
           <div className="space-y-2 text-[12.5px]">
             <div>1. DGEHS Card No. and Place of Issue: <strong>{dash(profile.cardNo)}</strong> ({dash(profile.placeOfIssue)})</div>
-            <div className="flex">
-              <span className="w-1/2">2. Validity of DGEHS Card: from <strong>{fmtDate(profile.validFrom)}</strong></span>
-              <span className="w-1/2">to <strong>{fmtDate(profile.validTo)}</strong></span>
-            </div>
+            <div>2. Validity of DGEHS Card: &nbsp;&nbsp;from <strong>{fmtDate(profile.validFrom)}</strong> to <strong>{fmtDate(profile.validTo)}</strong></div>
             <div>3. Ward Entitlement (if Admitted in Hospital): <strong>{profile.entitlement || 'Private. / Semi Private. / General'}</strong></div>
             <div>4. Full Name of Employee/Beneficiary (Block Letters): <strong>{dash(profile.employeeName)}</strong></div>
             <div>5. Designation: <strong>{dash(profile.designation)}</strong></div>
 
-            <div className="pt-2 font-bold">6. The following documents are submitted: - (Please tick (✓) the relevant column)</div>
+            <div className="pt-2 font-bold">6. The following documents are submitted:</div>
             <div className="space-y-1 pl-2 text-[12px]">
               {[
                 { label: 'a) Revised Medical 2004 Form:-', val: form3.checklist.revisedMedical2004 },
@@ -260,11 +392,17 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
               ))}
             </div>
 
-            <div className="pt-3">
-              7. Name of the Bank: <strong>{dash(profile.bankName)}</strong> Branch: <strong>{dash(profile.bankBranch)}</strong> SB A/C No: <strong>{dash(profile.sbAccountNo)}</strong>
-            </div>
-            <div>
-              Branch MICR Code: <strong>{dash(profile.micrCode)}</strong> IFS Code: <strong>{dash(profile.ifsCode)}</strong> Tel. No. of Bank Branch: <strong>{dash(profile.bankPhone)}</strong>
+            <div className="pt-3 space-y-1">
+              <div className="grid grid-cols-12 gap-x-4">
+                <div className="col-span-4">7. Name of the Bank: <strong>{dash(profile.bankName)}</strong></div>
+                <div className="col-span-4">Branch: <strong>{dash(profile.bankBranch)}</strong></div>
+                <div className="col-span-4">SB A/C No: <strong>{dash(profile.sbAccountNo)}</strong></div>
+              </div>
+              <div className="grid grid-cols-12 gap-x-4 text-[12px]">
+                <div className="col-span-4">Branch MICR Code: <strong>{dash(profile.micrCode)}</strong></div>
+                <div className="col-span-4">IFS Code: <strong>{dash(profile.ifsCode)}</strong></div>
+                <div className="col-span-4">Tel. No. of Bank Branch: <strong>{profile.bankPhone}</strong></div>
+              </div>
             </div>
           </div>
 
@@ -273,16 +411,14 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
             <div className="font-bold border-t border-slate-400 pt-1 px-4">Signature of DGEHS Card Holder</div>
           </div>
 
-          <div className="mt-2 text-[12px]">
+          <div className="mt-16 text-[12px]">
             Telephone No. (M) <strong>{dash(profile.phoneMobile)}</strong> (O) <strong>{dash(profile.phoneOffice)}</strong> E-Mail ID: <strong>{dash(profile.email)}</strong>
           </div>
 
           <div className="text-[10px] italic text-slate-500 mt-4 border-t pt-2">
-            Note: 1. Kindly enclose Photocopy of Cancelled Cheque for online transfer of money to the account of beneficiary.<br/>
+            Note: 1. Kindly enclose Photocopy of Cancelled Cheque for online transfer of money to the account of beneficiary.<br />
             2. Provide one original copy and two photocopies of complete set of claim.
           </div>
-
-          <div className="page-number-tag">Page 3 of 5 (Form 3)</div>
         </div>
 
 
@@ -298,50 +434,62 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
 
           <div className="space-y-2 text-[12.5px]">
             <div>1. DGEHS Card No. and Place of issue:- <strong>{dash(profile.cardNo)}</strong> ({dash(profile.placeOfIssue)})</div>
-            <div className="flex">
-              <span className="w-1/2">2. Validity of DGEHS Card: - from <strong>{fmtDate(profile.validFrom)}</strong></span>
-              <span className="w-1/2">to <strong>{fmtDate(profile.validTo)}</strong></span>
-            </div>
+            <div>2. Validity of DGEHS Card: - from <strong>{fmtDate(profile.validFrom)}</strong> to <strong>{fmtDate(profile.validTo)}</strong></div>
             <div>3. Ward Entitlement (if Admitted in Hospital): - <strong>{profile.entitlement || 'Private. / Semi Private. / General'}</strong></div>
             <div>4. Full Name of Employee/Beneficiary (Block Letters):- Mr./Ms. <strong>{dash(profile.employeeName)}</strong></div>
-            <div>5. Full Address:-- <strong>{dash(profile.residenceAddress)}</strong></div>
-            <div>6. Telephone No. (O) <strong>{dash(profile.phoneOffice)}</strong> (M) <strong>{dash(profile.phoneMobile)}</strong></div>
+            <div className="space-y-1">
+              <div>5. Full Address:-- <strong>{dash(profile.residenceAddress)}</strong></div>
+              <div className="grid grid-cols-2 gap-x-8 pl-4 text-[12px]">
+                <div>6. Telephone No. (Mobile): <strong>{dash(profile.phoneMobile)}</strong></div>
+                <div>Telephone No. (Office): <strong>{dash(profile.phoneOffice || profile.phoneRes)}</strong></div>
+              </div>
+            </div>
             <div>7. E-mail Address if, any: <strong>{dash(profile.email)}</strong></div>
-            <div>8. Name of the Bank <strong>{dash(profile.bankName)}</strong> Branch <strong>{dash(profile.bankBranch)}</strong> SB A/C No. <strong>{dash(profile.sbAccountNo)}</strong></div>
-            <div>Branch MICR Code <strong>{dash(profile.micrCode)}</strong> IFS Code <strong>{dash(profile.ifsCode)}</strong> Tel. No. of Bank Branch <strong>{dash(profile.bankPhone)}</strong></div>
+            <div className="space-y-1">
+              <div className="grid grid-cols-12 gap-x-4">
+                <div className="col-span-4">8. Name of the Bank: <strong>{dash(profile.bankName)}</strong></div>
+                <div className="col-span-3">Branch: <strong>{dash(profile.bankBranch)}</strong></div>
+                <div className="col-span-4">SB A/C No: <strong>{dash(profile.sbAccountNo)}</strong></div>
+              </div>
+              <div className="grid grid-cols-12 gap-x-4 pl-4 text-[12px]">
+                <div className="col-span-4">Branch MICR Code: <strong>{dash(profile.micrCode)}</strong></div>
+                <div className="col-span-3">IFS Code: <strong>{dash(profile.ifsCode)}</strong></div>
+                <div className="col-span-4">Tel: <strong>{dash(profile.bankPhone)}</strong></div>
+              </div>
+            </div>
             <div>9. Name of the Patient &amp; Relationship with the Card Holder:- <strong>{dash(form4.patientName)}</strong> ({dash(form4.relationship)})</div>
             <div>10. Basic Pay (Excluding Grade Pay):- <strong>{dash(profile.basicPay)}</strong></div>
             <div>11. Name of the Hospital with Address:- <strong>{dash(form4.hospitalName)}</strong> ({dash(form4.hospitalAddress)})</div>
             <div className="pl-4">
-              (a) OPD Treatment (Investigations) &amp; Period of treatment:- <strong>{fmtDate(form1.opdFromDate)} to {fmtDate(form1.opdToDate)}</strong><br/>
+              (a) OPD Treatment (Investigations) &amp; Period of treatment:- <strong>{fmtDate(form1.opdFromDate)} to {fmtDate(form1.opdToDate)}</strong><br />
               (b) Indoor Treatment:- Date of Admission <strong>{fmtDate(form1.indoorAdmissionDate)}</strong> Date of Discharge <strong>{fmtDate(form1.indoorDischargeDate)}</strong>
             </div>
 
-            <div>12. Total Amount Claimed: - Total Rs.</div>
+            <div>12. Total Amount Claimed: - Total Rs. <strong>{totalClaimed > 0 ? `₹${totalClaimed}` : (form2.reimbursementAmount ? `₹${form2.reimbursementAmount}` : '_______________________')}</strong></div>
             <table className="w-full border-collapse border border-slate-400 my-1.5 text-[12px]">
               <thead>
                 <tr className="bg-slate-100 font-bold">
                   <th className="border border-slate-400 p-1.5 text-left">Total Amount Claimed</th>
-                  <th className="border border-slate-400 p-1.5">Consultation Charges</th>
-                  <th className="border border-slate-400 p-1.5">Investigation Charges</th>
-                  <th className="border border-slate-400 p-1.5">Medicine Charges</th>
-                  <th className="border border-slate-400 p-1.5">Other Charges</th>
+                  <th className="border border-slate-400 p-1.5 text-right">Consultation Charges (₹)</th>
+                  <th className="border border-slate-400 p-1.5 text-right">Investigation Charges (₹)</th>
+                  <th className="border border-slate-400 p-1.5 text-right">Medicine Charges (₹)</th>
+                  <th className="border border-slate-400 p-1.5 text-right">Other Charges (₹)</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td className="border border-slate-400 p-1.5 font-bold">For OPD Treatment</td>
-                  <td className="border border-slate-400 p-1.5">{form4.opdConsultation || '___'}</td>
-                  <td className="border border-slate-400 p-1.5">{form4.opdInvestigation || '___'}</td>
-                  <td className="border border-slate-400 p-1.5">{form4.opdMedicine || '___'}</td>
-                  <td className="border border-slate-400 p-1.5">{form4.opdOther || '___'}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{opdConsultationDisp}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{opdInvestigationDisp}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{opdMedicineDisp}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{opdOtherDisp}</td>
                 </tr>
                 <tr>
                   <td className="border border-slate-400 p-1.5 font-bold">For Indoor Treatment</td>
-                  <td className="border border-slate-400 p-1.5">{form4.indoorConsultation || '___'}</td>
-                  <td className="border border-slate-400 p-1.5">{form4.indoorInvestigation || '___'}</td>
-                  <td className="border border-slate-400 p-1.5">{form4.indoorMedicine || '___'}</td>
-                  <td className="border border-slate-400 p-1.5">{form4.indoorOther || '___'}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{indoorConsultationDisp}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{indoorInvestigationDisp}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{indoorMedicineDisp}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{indoorOtherDisp}</td>
                 </tr>
               </tbody>
             </table>
@@ -359,8 +507,6 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
             <div>Dated:- <strong>{fmtDate(form4.declarationDate)}</strong></div>
             <div className="font-bold border-t border-slate-400 pt-1 px-4">Signature of DGEHS Card Holder</div>
           </div>
-
-          <div className="page-number-tag">Page 4 of 5 (Form 4)</div>
         </div>
 
 
@@ -402,21 +548,37 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
             </thead>
             <tbody>
               {form5.calcRows.map((r, idx) => (
-                <tr key={idx}>
+                <tr key={idx} className="break-inside-avoid">
                   <td className="border border-slate-400 p-1.5 text-center">{idx + 1}</td>
-                  <td className="border border-slate-400 p-1.5">{r.date || '\u00A0'}</td>
+                  <td className="border border-slate-400 p-1.5">{r.date ? fmtDate(r.date) : '\u00A0'}</td>
                   <td className="border border-slate-400 p-1.5">{r.treatmentName || '\u00A0'}</td>
                   <td className="border border-slate-400 p-1.5 font-mono font-bold">{r.cghsCode || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5">{r.rateCharged || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5">{r.approvedRate || '\u00A0'}</td>
-                  <td className="border border-slate-400 p-1.5 font-bold text-slate-900">{r.restrictedClaim || '\u00A0'}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{r.rateCharged || '\u00A0'}</td>
+                  <td className="border border-slate-400 p-1.5 text-right">{r.approvedRate || '\u00A0'}</td>
+                  <td className="border border-slate-400 p-1.5 text-right font-bold text-slate-900">{r.restrictedClaim || '\u00A0'}</td>
                   <td className="border border-slate-400 p-1.5">{r.remarks || '\u00A0'}</td>
                 </tr>
               ))}
+              {/* Total Amount Row - rendered only at the end (last row) of the table */}
+              <tr className="bg-slate-100 font-bold border-t-2 border-slate-500 text-slate-900 break-inside-avoid">
+                <td colSpan={4} className="border border-slate-400 p-1.5 text-right font-bold tracking-wide uppercase text-[11px]">
+                  Total Amount (₹):
+                </td>
+                <td className="border border-slate-400 p-1.5 text-right font-bold text-slate-900">
+                  {totalCalcCharged > 0 ? totalCalcCharged.toString() : '0'}
+                </td>
+                <td className="border border-slate-400 p-1.5 text-right font-bold text-sky-900">
+                  {totalCalcApproved > 0 ? totalCalcApproved.toString() : '0'}
+                </td>
+                <td className="border border-slate-400 p-1.5 text-right font-bold text-emerald-950 bg-slate-200/60">
+                  {totalCalcRestricted > 0 ? totalCalcRestricted.toString() : '0'}
+                </td>
+                <td className="border border-slate-400 p-1.5">&nbsp;</td>
+              </tr>
             </tbody>
           </table>
 
-          <div className="flex justify-between items-end mt-16 pt-6">
+          <div className="flex justify-between items-end mt-16 pt-6 break-inside-avoid">
             <div className="text-center font-bold border-t border-slate-400 pt-1 px-4">
               Signature of Employee
             </div>
@@ -427,10 +589,7 @@ export default function FormRenderer({ data, onEdit }: FormRendererProps) {
               Signature of HOS
             </div>
           </div>
-
-          <div className="page-number-tag">Page 5 of 5 (Form 5)</div>
         </div>
-
       </div>
     </div>
   );

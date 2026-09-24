@@ -1,5 +1,5 @@
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
-import { CommonProfile, HospitalItem, RateItem } from '@/types/form';
+import { CommonProfile, HospitalItem, RateItem, DependentProfile } from '@/types/form';
 import { localDb } from './db';
 
 const DEFAULT_HOSPITALS: HospitalItem[] = [
@@ -93,7 +93,7 @@ export async function ensureNeonSchema(): Promise<void> {
     // 1. User Profiles table
     await sql`
       CREATE TABLE IF NOT EXISTS user_profiles (
-        id SERIAL PRIMARY KEY,
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email VARCHAR(255) UNIQUE NOT NULL,
         employee_name TEXT DEFAULT '',
         employee_id TEXT DEFAULT '',
@@ -107,7 +107,6 @@ export async function ensureNeonSchema(): Promise<void> {
         phone_mobile TEXT DEFAULT '',
         phone_office TEXT DEFAULT '',
         phone_res TEXT DEFAULT '',
-        email_contact TEXT DEFAULT '',
         basic_pay TEXT DEFAULT '',
         pay_level TEXT DEFAULT '',
         entitlement TEXT DEFAULT 'Pvt.',
@@ -122,6 +121,15 @@ export async function ensureNeonSchema(): Promise<void> {
         updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `;
+
+    // Ensure id column default exists to avoid not-null constraint errors
+    try {
+      await sql`
+        ALTER TABLE user_profiles ALTER COLUMN id SET DEFAULT gen_random_uuid();
+      `;
+    } catch {
+      // Table id column already has default
+    }
 
     // 2. Claims table
     await sql`
@@ -163,9 +171,35 @@ export async function ensureNeonSchema(): Promise<void> {
       );
     `;
 
+    // 5. Dependent Profiles table (Medical Beneficiaries)
     await sql`
-      CREATE INDEX IF NOT EXISTS idx_rate_items_code ON rate_items(alphanumeric_code);
+      CREATE TABLE IF NOT EXISTS dependent_profiles (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+        name TEXT NOT NULL DEFAULT '',
+        relation TEXT NOT NULL DEFAULT '',
+        dob TEXT NOT NULL DEFAULT '',
+        gender TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
     `;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_dependents_user_id ON dependent_profiles(user_id);
+    `;
+
+    // 6. Data Migration: Automatically update any legacy 'Spouse' entries to 'Wife'
+    try {
+      await sql`UPDATE dependent_profiles SET relation = 'Wife' WHERE relation ILIKE 'spouse';`;
+      await sql`
+        UPDATE claims 
+        SET form_data = REPLACE(REPLACE(REPLACE(form_data::text, '"Spouse"', '"Wife"'), '"spouse"', '"Wife"'), '(Spouse)', '(Wife)')::jsonb 
+        WHERE form_data::text ILIKE '%spouse%';
+      `;
+    } catch {
+      // Ignore if table doesn't exist yet
+    }
 
     schemaInitialized = true;
     console.log('✅ Neon DB PostgreSQL Schema verified/initialized successfully');
@@ -176,6 +210,7 @@ export async function ensureNeonSchema(): Promise<void> {
 
 function mapRowToProfile(row: any): CommonProfile {
   return {
+    id: row.id || undefined,
     employeeName: row.employee_name || '',
     employeeId: row.employee_id || '',
     employeeCode: row.employee_code || '',
@@ -241,6 +276,46 @@ export async function upsertNeonUserProfile(email: string, profile: Partial<Comm
 
   await ensureNeonSchema();
   try {
+    // 1. If profile exists for email, update it
+    const existing = await sql`
+      SELECT id FROM user_profiles WHERE LOWER(email) = LOWER(${cleanEmail}) LIMIT 1;
+    `;
+
+    if (existing && existing.length > 0) {
+      const rows = await sql`
+        UPDATE user_profiles SET
+          employee_name = COALESCE(NULLIF(${profile.employeeName || ''}, ''), employee_name),
+          employee_id = COALESCE(NULLIF(${profile.employeeId || ''}, ''), employee_id),
+          employee_code = COALESCE(NULLIF(${profile.employeeCode || ''}, ''), employee_code),
+          designation = COALESCE(NULLIF(${profile.designation || ''}, ''), designation),
+          card_no = COALESCE(NULLIF(${profile.cardNo || ''}, ''), card_no),
+          place_of_issue = COALESCE(NULLIF(${profile.placeOfIssue || ''}, ''), place_of_issue),
+          valid_from = COALESCE(NULLIF(${profile.validFrom || ''}, ''), valid_from),
+          valid_to = COALESCE(NULLIF(${profile.validTo || ''}, ''), valid_to),
+          residence_address = COALESCE(NULLIF(${profile.residenceAddress || ''}, ''), residence_address),
+          phone_mobile = COALESCE(NULLIF(${profile.phoneMobile || ''}, ''), phone_mobile),
+          phone_office = COALESCE(NULLIF(${profile.phoneOffice || ''}, ''), phone_office),
+          phone_res = COALESCE(NULLIF(${profile.phoneRes || ''}, ''), phone_res),
+          basic_pay = COALESCE(NULLIF(${profile.basicPay || ''}, ''), basic_pay),
+          pay_level = COALESCE(NULLIF(${profile.payLevel || ''}, ''), pay_level),
+          entitlement = COALESCE(NULLIF(${profile.entitlement || ''}, ''), entitlement),
+          status = COALESCE(NULLIF(${profile.status || ''}, ''), status),
+          bank_name = COALESCE(NULLIF(${profile.bankName || ''}, ''), bank_name),
+          bank_branch = COALESCE(NULLIF(${profile.bankBranch || ''}, ''), bank_branch),
+          sb_account_no = COALESCE(NULLIF(${profile.sbAccountNo || ''}, ''), sb_account_no),
+          micr_code = COALESCE(NULLIF(${profile.micrCode || ''}, ''), micr_code),
+          ifs_code = COALESCE(NULLIF(${profile.ifsCode || ''}, ''), ifs_code),
+          bank_phone = COALESCE(NULLIF(${profile.bankPhone || ''}, ''), bank_phone),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE LOWER(email) = LOWER(${cleanEmail})
+        RETURNING *;
+      `;
+      if (rows && rows.length > 0) {
+        return mapRowToProfile(rows[0]);
+      }
+    }
+
+    // 2. If row does not exist, insert
     const rows = await sql`
       INSERT INTO user_profiles (
         email, employee_name, employee_id, employee_code, designation,
@@ -274,30 +349,6 @@ export async function upsertNeonUserProfile(email: string, profile: Partial<Comm
         ${profile.bankPhone || ''},
         CURRENT_TIMESTAMP
       )
-      ON CONFLICT (email) DO UPDATE SET
-        employee_name = COALESCE(EXCLUDED.employee_name, user_profiles.employee_name),
-        employee_id = COALESCE(EXCLUDED.employee_id, user_profiles.employee_id),
-        employee_code = COALESCE(EXCLUDED.employee_code, user_profiles.employee_code),
-        designation = COALESCE(EXCLUDED.designation, user_profiles.designation),
-        card_no = COALESCE(EXCLUDED.card_no, user_profiles.card_no),
-        place_of_issue = COALESCE(EXCLUDED.place_of_issue, user_profiles.place_of_issue),
-        valid_from = COALESCE(EXCLUDED.valid_from, user_profiles.valid_from),
-        valid_to = COALESCE(EXCLUDED.valid_to, user_profiles.valid_to),
-        residence_address = COALESCE(EXCLUDED.residence_address, user_profiles.residence_address),
-        phone_mobile = COALESCE(EXCLUDED.phone_mobile, user_profiles.phone_mobile),
-        phone_office = COALESCE(EXCLUDED.phone_office, user_profiles.phone_office),
-        phone_res = COALESCE(EXCLUDED.phone_res, user_profiles.phone_res),
-        basic_pay = COALESCE(EXCLUDED.basic_pay, user_profiles.basic_pay),
-        pay_level = COALESCE(EXCLUDED.pay_level, user_profiles.pay_level),
-        entitlement = COALESCE(EXCLUDED.entitlement, user_profiles.entitlement),
-        status = COALESCE(EXCLUDED.status, user_profiles.status),
-        bank_name = COALESCE(EXCLUDED.bank_name, user_profiles.bank_name),
-        bank_branch = COALESCE(EXCLUDED.bank_branch, user_profiles.bank_branch),
-        sb_account_no = COALESCE(EXCLUDED.sb_account_no, user_profiles.sb_account_no),
-        micr_code = COALESCE(EXCLUDED.micr_code, user_profiles.micr_code),
-        ifs_code = COALESCE(EXCLUDED.ifs_code, user_profiles.ifs_code),
-        bank_phone = COALESCE(EXCLUDED.bank_phone, user_profiles.bank_phone),
-        updated_at = CURRENT_TIMESTAMP
       RETURNING *;
     `;
     return mapRowToProfile(rows[0]);
@@ -327,7 +378,20 @@ export async function getNeonUserClaims(email: string): Promise<any[]> {
       WHERE LOWER(user_email) = LOWER(${email.trim()})
       ORDER BY updated_at DESC;
     `;
-    return rows;
+    return rows.map((r) => {
+      if (r.formData) {
+        try {
+          const serialized = JSON.stringify(r.formData)
+            .replace(/"Spouse"/g, '"Wife"')
+            .replace(/"spouse"/g, '"Wife"')
+            .replace(/\(Spouse\)/g, '(Wife)');
+          return { ...r, formData: JSON.parse(serialized) };
+        } catch {
+          return r;
+        }
+      }
+      return r;
+    });
   } catch (e) {
     console.warn('Error fetching Neon claims:', e);
     return [];
@@ -343,6 +407,17 @@ export async function saveNeonUserClaim(
   const title = claim.title || `Medical Claim - ${new Date().toLocaleDateString()}`;
   const status = claim.status || 'DRAFT';
 
+  let sanitizedFormData = claim.formData;
+  if (sanitizedFormData) {
+    try {
+      const serialized = JSON.stringify(sanitizedFormData)
+        .replace(/"Spouse"/g, '"Wife"')
+        .replace(/"spouse"/g, '"Wife"')
+        .replace(/\(Spouse\)/g, '(Wife)');
+      sanitizedFormData = JSON.parse(serialized);
+    } catch {}
+  }
+
   if (!sql) {
     return {
       _id: id,
@@ -350,7 +425,7 @@ export async function saveNeonUserClaim(
       userEmail: email,
       title,
       status,
-      formData: claim.formData,
+      formData: sanitizedFormData,
       updatedAt: new Date().toISOString()
     };
   }
@@ -359,7 +434,7 @@ export async function saveNeonUserClaim(
   try {
     const rows = await sql`
       INSERT INTO claims (id, user_email, title, status, form_data, updated_at)
-      VALUES (${id}, ${email.trim().toLowerCase()}, ${title}, ${status}, ${JSON.stringify(claim.formData)}::jsonb, CURRENT_TIMESTAMP)
+      VALUES (${id}, ${email.trim().toLowerCase()}, ${title}, ${status}, ${JSON.stringify(sanitizedFormData)}::jsonb, CURRENT_TIMESTAMP)
       ON CONFLICT (id) DO UPDATE SET
         title = EXCLUDED.title,
         status = EXCLUDED.status,
@@ -376,7 +451,7 @@ export async function saveNeonUserClaim(
       userEmail: email,
       title,
       status,
-      formData: claim.formData,
+      formData: sanitizedFormData,
       updatedAt: new Date().toISOString()
     };
   }
@@ -449,5 +524,68 @@ export async function searchNeonRateItems(query: string, limit = 40): Promise<Ra
   } catch (e) {
     console.warn('Error querying Neon rate items, using local fallback:', e);
     return localDb.searchRateList(query, limit);
+  }
+}
+
+// Dependent Profiles Queries (Keyed by user_id UUID)
+export async function getNeonUserDependents(userId: string): Promise<DependentProfile[]> {
+  const sql = getNeonClient();
+  if (!sql) {
+    return localDb.getDependents(userId);
+  }
+
+  await ensureNeonSchema();
+  try {
+    const rows = await sql`
+      SELECT id, user_id as "userId", name, relation, dob, gender
+      FROM dependent_profiles
+      WHERE user_id = ${userId}::uuid
+      ORDER BY created_at ASC;
+    `;
+    return rows as DependentProfile[];
+  } catch (e) {
+    console.warn('Error querying Neon dependent profiles:', e);
+    return localDb.getDependents(userId);
+  }
+}
+
+export async function saveNeonUserDependents(
+  userId: string,
+  dependents: DependentProfile[]
+): Promise<DependentProfile[]> {
+  const sql = getNeonClient();
+  if (!sql) {
+    return localDb.saveDependents(userId, dependents);
+  }
+
+  await ensureNeonSchema();
+  try {
+    // Replace all existing dependents for this user in an atomic batch
+    await sql`DELETE FROM dependent_profiles WHERE user_id = ${userId}::uuid;`;
+
+    const inserted: DependentProfile[] = [];
+    for (const dep of dependents) {
+      if (!dep.name && !dep.relation) continue; // Skip empty rows
+      const rows = await sql`
+        INSERT INTO dependent_profiles (
+          user_id, name, relation, dob, gender, updated_at
+        ) VALUES (
+          ${userId}::uuid,
+          ${dep.name || ''},
+          ${dep.relation || 'Other'},
+          ${dep.dob || ''},
+          ${dep.gender || ''},
+          CURRENT_TIMESTAMP
+        )
+        RETURNING id, user_id as "userId", name, relation, dob, gender;
+      `;
+      if (rows && rows.length > 0) {
+        inserted.push(rows[0] as DependentProfile);
+      }
+    }
+    return inserted;
+  } catch (e) {
+    console.error('Error saving Neon dependent profiles:', e);
+    return localDb.saveDependents(userId, dependents);
   }
 }

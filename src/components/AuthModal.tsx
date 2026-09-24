@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { parseGovEmail } from '@/lib/auth-helpers';
+import { showSuccessAlert, showErrorAlert } from '@/lib/alerts';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -14,24 +15,21 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'oauth' | 'email'>('oauth');
 
   if (!isOpen) return null;
 
   const handleOAuthSignIn = (provider: 'google' | 'github' | 'facebook' | 'twitter') => {
-    setErrorMsg('');
     signIn(provider, { callbackUrl: window.location.href });
   };
 
   const handleDirectEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg('');
     setLoading(true);
 
     const parsed = parseGovEmail(email);
     if (!parsed.isValid) {
-      setErrorMsg(parsed.errorMessage || 'Please enter a valid email address.');
+      showErrorAlert('Invalid Email', parsed.errorMessage || 'Please enter a valid email address.');
       setLoading(false);
       return;
     }
@@ -45,16 +43,17 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
       const data = await res.json();
 
       if (data.success && data.session) {
+        showSuccessAlert('Signed In Successfully!', 'Welcome to the DGEHS Medical Claim Portal.');
         window.dispatchEvent(new Event('dgehs-session-changed'));
         if (onLoginSuccess) {
           onLoginSuccess(data.session);
         }
         onClose();
       } else {
-        setErrorMsg(data.error || 'Failed to sign in. Please try again.');
+        showErrorAlert('Sign In Failed', data.error || 'Failed to sign in. Please try again.');
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Login request failed.');
+      showErrorAlert('Sign In Error', err.message || 'Login request failed.');
     } finally {
       setLoading(false);
     }
@@ -111,14 +110,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             Instant Email Sign-In
           </button>
         </div>
-
-        {/* Error Notification */}
-        {errorMsg && (
-          <div className="p-3 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-300 text-xs flex items-center justify-between">
-            <span>⚠️ {errorMsg}</span>
-            <button onClick={() => setErrorMsg('')} className="text-rose-400 hover:text-rose-200">✕</button>
-          </div>
-        )}
 
         {/* Tab 1: OAuth Providers */}
         {activeTab === 'oauth' ? (
@@ -201,7 +192,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
               <input
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => setFullName(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
                 placeholder="e.g. Rajesh Kumar Sharma"
                 className="w-full p-3 text-xs text-slate-900 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none uppercase"
               />

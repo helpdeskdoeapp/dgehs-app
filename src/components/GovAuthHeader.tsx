@@ -5,6 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { CommonProfile, CompleteFormData } from '@/types/form';
 import { parseGovEmail } from '@/lib/auth-helpers';
 import AuthModal from './AuthModal';
+import { showSuccessAlert, showErrorAlert } from '@/lib/alerts';
 
 interface GovAuthHeaderProps {
   formData: CompleteFormData;
@@ -22,8 +23,6 @@ export default function GovAuthHeader({
 
   const [emailInput, setEmailInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [statusMsg, setStatusMsg] = useState('');
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Drafts list modal state
@@ -61,7 +60,6 @@ export default function GovAuthHeader({
   const handleDevEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg('');
     try {
       const res = await fetch('/api/auth/gov-login', {
         method: 'POST',
@@ -72,16 +70,16 @@ export default function GovAuthHeader({
 
       if (json.success && json.session) {
         setCustomSession(json.session);
-        setStatusMsg(json.message);
+        showSuccessAlert('Signed In', json.message || 'Successfully signed in!');
         window.dispatchEvent(new Event('dgehs-session-changed'));
         if (json.session.profile) {
           onProfileLoaded(json.session.profile);
         }
       } else {
-        setErrorMsg(json.error || 'Login failed');
+        showErrorAlert('Sign In Failed', json.error || 'Login failed');
       }
     } catch (err) {
-      setErrorMsg('Login failed');
+      showErrorAlert('Sign In Failed', 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -103,11 +101,13 @@ export default function GovAuthHeader({
       });
       const json = await res.json();
       if (json.success) {
-        setStatusMsg('Static employee profile saved to Neon DB (PostgreSQL)!');
-        setTimeout(() => setStatusMsg(''), 4000);
+        showSuccessAlert('Profile Saved', 'Static employee profile saved to database!');
+      } else {
+        showErrorAlert('Save Failed', json.error || 'Failed to save employee profile.');
       }
     } catch (e) {
       console.error('Failed saving profile', e);
+      showErrorAlert('Error', 'Failed to save employee profile.');
     }
   };
 
@@ -125,11 +125,13 @@ export default function GovAuthHeader({
       });
       const json = await res.json();
       if (json.success) {
-        setStatusMsg(json.message);
-        setTimeout(() => setStatusMsg(''), 4000);
+        showSuccessAlert(status === 'SUBMITTED' ? 'Claim Submitted' : 'Draft Saved', json.message || 'Saved successfully!');
+      } else {
+        showErrorAlert('Save Failed', json.error || 'Failed saving claim.');
       }
     } catch (e) {
       console.error('Failed saving draft', e);
+      showErrorAlert('Error', 'Network error while saving claim draft.');
     } finally {
       setSavingDraft(false);
     }
@@ -177,10 +179,6 @@ export default function GovAuthHeader({
             </div>
             <h1 className="text-sm font-bold text-white flex items-center gap-2">
               DGEHS Claims Portal
-              <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                Neon DB Active
-              </span>
             </h1>
           </div>
         </div>
@@ -213,7 +211,12 @@ export default function GovAuthHeader({
               onClick={handleSaveProfileToNeon}
               className="bg-sky-600 hover:bg-sky-500 text-white font-semibold px-3 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
             >
-              <span>💾</span> Save Profile to Neon DB
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 21V13H7v8" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 3v5h8" />
+              </svg>
+              <span>Save Profile</span>
             </button>
 
             <button
@@ -286,33 +289,18 @@ export default function GovAuthHeader({
         )}
       </div>
 
-      {/* Notifications / Errors */}
-      {errorMsg && (
-        <div className="max-w-7xl mx-auto mt-2 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs px-4 py-2 rounded-xl flex justify-between items-center">
-          <span>⚠️ {errorMsg}</span>
-          <button onClick={() => setErrorMsg('')}>✕</button>
-        </div>
-      )}
-
-      {statusMsg && (
-        <div className="max-w-7xl mx-auto mt-2 bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs px-4 py-2 rounded-xl flex justify-between items-center animate-fadeIn">
-          <span>✅ {statusMsg}</span>
-          <button onClick={() => setStatusMsg('')}>✕</button>
-        </div>
-      )}
-
       {/* Drafts Modal */}
       {showDraftsModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white text-slate-900 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-sm text-sky-900">Saved Drafts &amp; Submissions (Neon DB)</h3>
+              <h3 className="font-bold text-sm text-sky-900">Saved Drafts &amp; Submissions</h3>
               <button onClick={() => setShowDraftsModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
             {claimsList.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-500">
-                No saved drafts found in Neon DB. Click "Save Claim Draft" to save your work!
+                No saved drafts found in database. Click "Save Claim Draft" to save your work!
               </div>
             ) : (
               <div className="space-y-2 max-h-72 overflow-y-auto">
@@ -331,7 +319,7 @@ export default function GovAuthHeader({
                       onClick={() => {
                         if (claim.formData) {
                           onClaimLoaded(claim.formData);
-                          setStatusMsg(`Loaded "${claim.title}"!`);
+                          showSuccessAlert('Claim Loaded', `Loaded "${claim.title}"!`);
                           setShowDraftsModal(false);
                         }
                       }}

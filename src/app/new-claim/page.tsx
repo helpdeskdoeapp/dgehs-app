@@ -5,13 +5,35 @@ import Navbar from '@/components/Navbar';
 import CommonProfileForm from '@/components/CommonProfileForm';
 import FormSpecificsEditor from '@/components/FormSpecificsEditor';
 import FormRenderer from '@/components/FormRenderer';
-import { CompleteFormData, CommonProfile } from '@/types/form';
+import { CompleteFormData, CommonProfile, DependentProfile, PatientRow } from '@/types/form';
+import { showSuccessAlert, showErrorAlert } from '@/lib/alerts';
+
+const DEFAULT_DEPENDENTS: DependentProfile[] = [
+  {
+    name: 'RAJESH KUMAR SHARMA',
+    relation: 'Self',
+    dob: '1980-05-15',
+    gender: 'Male'
+  },
+  {
+    name: 'SUNITA SHARMA',
+    relation: 'Wife',
+    dob: '1984-08-20',
+    gender: 'Female'
+  },
+  {
+    name: 'ROHAN SHARMA',
+    relation: 'Son',
+    dob: '2010-11-12',
+    gender: 'Male'
+  }
+];
 
 const INITIAL_FORM_DATA: CompleteFormData = {
   profile: {
     employeeName: 'RAJESH KUMAR SHARMA',
     employeeId: '98241',
-    employeeCode: 'EC-98241',
+    employeeCode: '98241',
     designation: 'Senior Section Officer',
     cardNo: 'DGEHS-DEL-98241',
     placeOfIssue: 'Dispensary Gulabi Bagh, Delhi',
@@ -23,7 +45,7 @@ const INITIAL_FORM_DATA: CompleteFormData = {
     phoneRes: '011-27459812',
     email: '98241.rajesh@doe.delhi.gov.in',
     basicPay: '78800',
-    payLevel: 'Level 10 (Pay Matrix 56100-177500)',
+    payLevel: 'Level 10',
     entitlement: 'Pvt.',
     status: 'Govt. Servant',
     bankName: 'State Bank of India',
@@ -33,6 +55,7 @@ const INITIAL_FORM_DATA: CompleteFormData = {
     ifsCode: 'SBIN0000677',
     bankPhone: '011-23392104'
   },
+  dependents: DEFAULT_DEPENDENTS,
   form1: {
     opdFromDate: '2025-05-10',
     opdToDate: '2025-05-24',
@@ -41,6 +64,7 @@ const INITIAL_FORM_DATA: CompleteFormData = {
     patients: [
       {
         sNo: 1,
+        included: true,
         name: 'RAJESH KUMAR SHARMA',
         relation: 'Self',
         hospitalName: 'Max Super Speciality Hospital, Saket, New Delhi',
@@ -49,6 +73,30 @@ const INITIAL_FORM_DATA: CompleteFormData = {
         medicineAmount: '3200',
         otherAmount: '800',
         claimedAmount: '11000'
+      },
+      {
+        sNo: 2,
+        included: false,
+        name: 'SUNITA SHARMA',
+        relation: 'Wife',
+        hospitalName: 'Max Super Speciality Hospital, Saket, New Delhi',
+        consultationAmount: '0',
+        investigationAmount: '0',
+        medicineAmount: '0',
+        otherAmount: '0',
+        claimedAmount: '0'
+      },
+      {
+        sNo: 3,
+        included: false,
+        name: 'ROHAN SHARMA',
+        relation: 'Son',
+        hospitalName: 'Max Super Speciality Hospital, Saket, New Delhi',
+        consultationAmount: '0',
+        investigationAmount: '0',
+        medicineAmount: '0',
+        otherAmount: '0',
+        claimedAmount: '0'
       }
     ],
     enclosures: {
@@ -69,14 +117,14 @@ const INITIAL_FORM_DATA: CompleteFormData = {
     checklist: {
       revisedMedical2004: 'Yes',
       photocopyCard: 'Yes',
-      photocopyReferral: 'Yes',
+      photocopyReferral: 'No',
       originalBills: 'Yes',
       prescriptionOrDischarge: 'Yes',
-      breakupLab: 'Yes',
+      breakupLab: 'No',
       breakupDrugs: 'Yes',
-      emergencyCert: 'Yes',
+      emergencyCert: 'No',
       emergencyLetter: 'No',
-      nonAvailabilityCert: 'No',
+      nonAvailabilityCert: 'Yes',
       originalLost: 'No',
       claimPapersLost: 'No',
       affidavitLost: 'No',
@@ -96,15 +144,15 @@ const INITIAL_FORM_DATA: CompleteFormData = {
     opdTreatmentPeriod: '10-May-2025 to 24-May-2025',
     indoorAdmissionDate: '2025-05-12',
     indoorDischargeDate: '2025-05-18',
-    opdTotal: '4500',
-    opdConsultation: '700',
-    opdInvestigation: '2600',
-    opdMedicine: '1200',
-    opdOther: '0',
-    indoorTotal: '6500',
-    indoorConsultation: '700',
-    indoorInvestigation: '3000',
-    indoorMedicine: '2800',
+    opdTotal: '11000',
+    opdConsultation: '1400',
+    opdInvestigation: '5600',
+    opdMedicine: '3200',
+    opdOther: '800',
+    indoorTotal: '0',
+    indoorConsultation: '0',
+    indoorInvestigation: '0',
+    indoorMedicine: '0',
     indoorOther: '0',
     referralDetails: 'Referred by CMO Dispensary Gulabi Bagh vide Ref No. 9481/2025',
     medicalAdvanceDetails: 'NIL',
@@ -144,44 +192,239 @@ const INITIAL_FORM_DATA: CompleteFormData = {
   }
 };
 
+const normalizeRelations = (fd: CompleteFormData): CompleteFormData => {
+  if (!fd) return fd;
+  const mapRel = (r?: string) => (r && r.trim().toLowerCase() === 'spouse' ? 'Wife' : (r || ''));
+  return {
+    ...fd,
+    dependents: (fd.dependents || []).map((d) => ({
+      ...d,
+      relation: mapRel(d.relation)
+    })),
+    form1: {
+      ...fd.form1,
+      patients: (fd.form1?.patients || []).map((p) => ({
+        ...p,
+        relation: mapRel(p.relation)
+      }))
+    },
+    form2: {
+      ...fd.form2,
+      familyMembers: (fd.form2?.familyMembers || ['', '', '', '']).map((fm) =>
+        fm ? fm.replace(/\(Spouse\)/gi, '(Wife)') : ''
+      ) as [string, string, string, string]
+    },
+    form4: {
+      ...fd.form4,
+      relationship: mapRel(fd.form4?.relationship)
+    },
+    form5: {
+      ...fd.form5,
+      relationship: mapRel(fd.form5?.relationship)
+    }
+  };
+};
+
 export default function NewClaimPage() {
   const [formData, setFormData] = useState<CompleteFormData>(INITIAL_FORM_DATA);
   const [step, setStep] = useState<'profile' | 'specifics' | 'preview'>('profile');
+  const [claimId, setClaimId] = useState<string>(() => `claim_${Date.now()}`);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // Load static profile defaults from MongoDB Atlas if available
-    fetch('/api/profile')
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success && json.data) {
-          updateProfileData(json.data);
+    const loadInitialData = async () => {
+      let draftLoaded = false;
+
+      // 1. Try loading existing draft from DB
+      try {
+        const claimsRes = await fetch('/api/user/claims');
+        const claimsJson = await claimsRes.json();
+        if (claimsJson.success && claimsJson.data && claimsJson.data.length > 0) {
+          const latestDraft = claimsJson.data.find((c: any) => c.status === 'DRAFT') || claimsJson.data[0];
+          if (latestDraft && latestDraft.formData) {
+            const normalized = normalizeRelations(latestDraft.formData);
+            setFormData(normalized);
+            if (latestDraft.id || latestDraft._id) {
+              setClaimId(latestDraft.id || latestDraft._id);
+            }
+            draftLoaded = true;
+          }
         }
-      })
-      .catch((e) => console.error('Failed auto-fetching profile', e));
+      } catch (e) {
+        console.error('Failed fetching user claims from DB', e);
+      }
+
+      // 2. Fallback to localStorage draft if not in DB
+      if (!draftLoaded && typeof window !== 'undefined') {
+        const local = localStorage.getItem('dgehs_claim_draft');
+        if (local) {
+          try {
+            const parsed = JSON.parse(local);
+            if (parsed && parsed.formData) {
+              const normalized = normalizeRelations(parsed.formData);
+              setFormData(normalized);
+              if (parsed.claimId) setClaimId(parsed.claimId);
+              draftLoaded = true;
+            }
+          } catch (e) {
+            console.error('Error parsing local draft', e);
+          }
+        }
+      }
+
+      // 3. Fetch latest profile
+      try {
+        const profRes = await fetch('/api/profile');
+        const profJson = await profRes.json();
+        if (profJson.success && profJson.data) {
+          if (!draftLoaded) {
+            updateProfileData(profJson.data);
+          }
+        }
+      } catch (e) {
+        console.error('Failed fetching profile', e);
+      }
+
+      // 4. Fetch dependents and prefill table if fresh form
+      try {
+        const depsRes = await fetch('/api/profile/dependents');
+        const depsJson = await depsRes.json();
+        if (depsJson.success && depsJson.data && depsJson.data.length > 0) {
+          const loadedDeps: DependentProfile[] = depsJson.data;
+
+          setFormData((prev) => {
+            // If the patient table is empty or fresh, pre-populate all dependents with Self checked
+            if (!draftLoaded || !prev.form1.patients || prev.form1.patients.length === 0) {
+              const prefilledPatientRows: PatientRow[] = loadedDeps.map((dep, idx) => ({
+                sNo: idx + 1,
+                included: idx === 0 || dep.relation === 'Self',
+                name: dep.name,
+                relation: dep.relation,
+                hospitalName: prev.form4.hospitalName || 'Max Super Speciality Hospital, Saket, New Delhi',
+                consultationAmount: idx === 0 ? '1400' : '0',
+                investigationAmount: idx === 0 ? '5600' : '0',
+                medicineAmount: idx === 0 ? '3200' : '0',
+                otherAmount: idx === 0 ? '800' : '0',
+                claimedAmount: idx === 0 ? '11000' : '0'
+              }));
+
+              return {
+                ...prev,
+                dependents: loadedDeps,
+                form1: {
+                  ...prev.form1,
+                  patients: prefilledPatientRows
+                }
+              };
+            }
+
+            return {
+              ...prev,
+              dependents: loadedDeps
+            };
+          });
+        }
+      } catch (e) {
+        console.error('Failed fetching dependents', e);
+      }
+    };
+
+    loadInitialData();
   }, []);
 
   const updateProfileData = (newProfile: CommonProfile) => {
-    setFormData((prev) => ({
-      ...prev,
-      profile: newProfile,
-      form2: {
-        ...prev.form2,
-        familyMembers: [
-          `${newProfile.employeeName} (Self)`,
-          prev.form2.familyMembers[1],
-          prev.form2.familyMembers[2],
-          prev.form2.familyMembers[3]
-        ]
-      },
-      form4: {
-        ...prev.form4,
-        patientName: prev.form4.patientName || newProfile.employeeName
-      },
-      form5: {
-        ...prev.form5,
-        patientName: prev.form5.patientName || newProfile.employeeName
+    setFormData((prev) => {
+      const updatedPatients = prev.form1.patients.map((p) =>
+        p.relation === 'Self' ? { ...p, name: newProfile.employeeName } : p
+      );
+
+      const activePatients = updatedPatients.filter((p) => p.included !== false);
+
+      return {
+        ...prev,
+        profile: newProfile,
+        form1: {
+          ...prev.form1,
+          patients: updatedPatients
+        },
+        form2: {
+          ...prev.form2,
+          familyMembers: [
+            activePatients[0] ? `${activePatients[0].name} (${activePatients[0].relation})` : `${newProfile.employeeName} (Self)`,
+            activePatients[1] ? `${activePatients[1].name} (${activePatients[1].relation})` : prev.form2.familyMembers[1],
+            activePatients[2] ? `${activePatients[2].name} (${activePatients[2].relation})` : prev.form2.familyMembers[2],
+            activePatients[3] ? `${activePatients[3].name} (${activePatients[3].relation})` : prev.form2.familyMembers[3]
+          ]
+        },
+        form4: {
+          ...prev.form4,
+          patientName: prev.form4.patientName || newProfile.employeeName
+        },
+        form5: {
+          ...prev.form5,
+          patientName: prev.form5.patientName || newProfile.employeeName
+        }
+      };
+    });
+  };
+
+  const handleSaveClaim = async (dataToSave?: CompleteFormData) => {
+    const data = normalizeRelations(dataToSave || formData);
+    setIsSaving(true);
+    try {
+      // 1. Save to localStorage for instant browser offline resilience
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          'dgehs_claim_draft',
+          JSON.stringify({
+            claimId,
+            formData: data,
+            savedAt: new Date().toISOString()
+          })
+        );
       }
-    }));
+
+      // 2. Save profile
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data.profile)
+      }).catch((e) => console.error('Error auto-updating profile on save', e));
+
+      // 3. Save claim to Neon PostgreSQL
+      const title = `Medical Claim - ${data.form4.patientName || data.profile.employeeName || 'Draft'} (${new Date().toLocaleDateString()})`;
+      const res = await fetch('/api/user/claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claimId,
+          title,
+          status: 'DRAFT',
+          formData: data
+        })
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        if (json.data?.id) {
+          setClaimId(json.data.id);
+        }
+        showSuccessAlert(
+          'Claim Saved to Database',
+          'Your claim progress has been saved. Even if you log out and log back in, all your details will be prefilled automatically!'
+        );
+      } else {
+        showSuccessAlert(
+          'Draft Saved Locally',
+          'Your half-filled claim form has been saved to your browser session. Sign in to sync across devices.'
+        );
+      }
+    } catch (e) {
+      console.error('Error saving claim draft', e);
+      showSuccessAlert('Saved Locally', 'Claim details saved to your local browser session.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -190,41 +433,46 @@ export default function NewClaimPage() {
 
       {/* Sub-Header Step Nav */}
       <div className="no-print border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-[61px] z-30">
-        <div className="max-w-6xl mx-auto px-4 py-2.5 flex justify-between items-center text-xs font-semibold">
-          <div className="text-slate-400 font-mono">
-            New Claim Wizard — Emp ID: <span className="font-bold text-sky-400">{formData.profile.employeeId || '98241'}</span>
-          </div>
-
+        <div className="max-w-6xl mx-auto px-4 py-2.5 flex flex-wrap justify-between items-center gap-2 text-xs font-semibold">
           <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
               onClick={() => setStep('profile')}
-              className={`px-3.5 py-1.5 rounded-lg transition-all ${
-                step === 'profile'
+              className={`px-3.5 py-1.5 rounded-lg transition-all ${step === 'profile'
                   ? 'bg-sky-600 text-white font-bold shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
-              }`}
+                }`}
             >
               1. Common Info
             </button>
             <button
               onClick={() => setStep('specifics')}
-              className={`px-3.5 py-1.5 rounded-lg transition-all ${
-                step === 'specifics'
+              className={`px-3.5 py-1.5 rounded-lg transition-all ${step === 'specifics'
                   ? 'bg-sky-600 text-white font-bold shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
-              }`}
+                }`}
             >
               2. 5 Forms Specifics
             </button>
             <button
               onClick={() => setStep('preview')}
-              className={`px-3.5 py-1.5 rounded-lg transition-all ${
-                step === 'preview'
+              className={`px-3.5 py-1.5 rounded-lg transition-all ${step === 'preview'
                   ? 'bg-emerald-600 text-white font-bold shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
-              }`}
+                }`}
             >
               3. 5-Page Printable PDF
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={() => handleSaveClaim()}
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs px-4 py-1.5 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+            >
+              <span>{isSaving ? '⏳' : '💾'}</span>
+              <span>{isSaving ? 'Saving to DB...' : 'Save Claim Progress'}</span>
             </button>
           </div>
         </div>
@@ -236,6 +484,8 @@ export default function NewClaimPage() {
             profile={formData.profile}
             onChange={updateProfileData}
             onNext={() => setStep('specifics')}
+            onSave={() => handleSaveClaim()}
+            isSaving={isSaving}
           />
         )}
 
@@ -245,6 +495,8 @@ export default function NewClaimPage() {
             onChange={(d) => setFormData(d)}
             onBack={() => setStep('profile')}
             onPreview={() => setStep('preview')}
+            onSave={() => handleSaveClaim()}
+            isSaving={isSaving}
           />
         )}
 

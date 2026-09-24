@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { RateItem, HospitalItem, CommonProfile } from '@/types/form';
+import { RateItem, HospitalItem, CommonProfile, DependentProfile } from '@/types/form';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const RATELIST_FILE = path.join(DATA_DIR, 'ratelist.json');
@@ -13,6 +13,7 @@ interface NoSqlSchema {
   items: RateItem[];
   hospitals: HospitalItem[];
   mockProfile: CommonProfile;
+  dependentsMap?: Record<string, DependentProfile[]>;
 }
 
 const DEFAULT_HOSPITALS: HospitalItem[] = [
@@ -31,8 +32,8 @@ const DEFAULT_HOSPITALS: HospitalItem[] = [
 
 const DEFAULT_MOCK_PROFILE: CommonProfile = {
   employeeName: 'RAJESH KUMAR SHARMA',
-  employeeId: 'EMP-98241',
-  employeeCode: 'EC-44120',
+  employeeId: '98241',
+  employeeCode: '44120',
   designation: 'Senior Section Officer',
   cardNo: 'DGEHS-DEL-887412',
   placeOfIssue: 'Dispensary Gulabi Bagh, Delhi',
@@ -44,7 +45,7 @@ const DEFAULT_MOCK_PROFILE: CommonProfile = {
   phoneRes: '011-27459812',
   email: 'rajesh.sharma@gov.in',
   basicPay: '78800',
-  payLevel: 'Level 10 (Pay Matrix 56100-177500)',
+  payLevel: 'Level 10',
   entitlement: 'Pvt.',
   status: 'Govt. Servant',
   bankName: 'State Bank of India',
@@ -141,6 +142,28 @@ class NoSqlFileDB {
       // In-memory update is preserved for the lifecycle of the warm instance
     }
     return db.mockProfile;
+  }
+
+  public getDependents(userId: string): DependentProfile[] {
+    const db = this.getDb();
+    if (!db.dependentsMap) {
+      db.dependentsMap = {};
+    }
+    return db.dependentsMap[userId] || [];
+  }
+
+  public saveDependents(userId: string, dependents: DependentProfile[]): DependentProfile[] {
+    const db = this.getDb();
+    if (!db.dependentsMap) {
+      db.dependentsMap = {};
+    }
+    db.dependentsMap[userId] = dependents;
+    try {
+      fs.writeFileSync(NOSQL_DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+    } catch {
+      // In serverless environments
+    }
+    return db.dependentsMap[userId];
   }
 }
 

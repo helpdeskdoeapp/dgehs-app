@@ -90,10 +90,6 @@ export default function CGHSCodePicker({
       remarks: remarksValue || defaultRemark
     });
 
-    if (onRemarksChange && !remarksValue) {
-      onRemarksChange(defaultRemark);
-    }
-
     setIsOpen(false);
   };
 
@@ -108,8 +104,11 @@ export default function CGHSCodePicker({
             <DatePicker
               value={dateValue}
               onChange={(val) => {
-                if (onDateChange) onDateChange(val);
-                onSelect({ code: codeValue, name: nameValue, approvedRate: '', date: val, remarks: remarksValue });
+                if (onDateChange) {
+                  onDateChange(val);
+                } else {
+                  onSelect({ code: codeValue, name: nameValue, approvedRate: '', date: val, remarks: remarksValue });
+                }
               }}
               placeholder="Treatment Date"
             />
@@ -164,6 +163,10 @@ export default function CGHSCodePicker({
                 key={`${item.alphanumeric_code}-${item.s_no}`}
                 onMouseDown={(e) => {
                   e.preventDefault(); // Prevent blur before selection
+                  handlePick(item);
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
                   handlePick(item);
                 }}
                 className="p-2.5 hover:bg-sky-50 cursor-pointer rounded-lg transition-colors flex flex-col gap-1 text-xs"

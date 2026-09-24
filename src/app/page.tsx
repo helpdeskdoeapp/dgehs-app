@@ -7,13 +7,13 @@ import FormRenderer from '@/components/FormRenderer';
 import { CommonProfile, CompleteFormData } from '@/types/form';
 import CGHSCodePicker from '@/components/CGHSCodePicker';
 import AuthModal from '@/components/AuthModal';
+import { showSuccessAlert } from '@/lib/alerts';
 
 export default function HomePage() {
   const [profile, setProfile] = useState<CommonProfile | null>(null);
   const [claims, setClaims] = useState<any[]>([]);
   const [loadingClaims, setLoadingClaims] = useState(true);
   const [activeClaimForPreview, setActiveClaimForPreview] = useState<CompleteFormData | null>(null);
-  const [toastMsg, setToastMsg] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ email?: string; name?: string; id?: string; image?: string | null } | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -66,8 +66,7 @@ export default function HomePage() {
   const handlePrintClaim = (claim: any) => {
     if (claim.formData) {
       setActiveClaimForPreview(claim.formData);
-      setToastMsg(`Loaded "${claim.title}" for PDF printing!`);
-      setTimeout(() => setToastMsg(''), 4000);
+      showSuccessAlert('Claim Loaded for Printing', `Loaded "${claim.title}" for 5-page PDF preview!`);
     }
   };
 
@@ -147,13 +146,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {toastMsg && (
-              <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs font-semibold px-4 py-3 rounded-xl flex items-center justify-between animate-fadeIn">
-                <span>✅ {toastMsg}</span>
-                <button onClick={() => setToastMsg('')} className="text-emerald-400">✕</button>
-              </div>
-            )}
-
             {/* Summary KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-md">
@@ -161,7 +153,7 @@ export default function HomePage() {
                   Submitted Claims
                 </div>
                 <div className="text-3xl font-extrabold text-emerald-400">{totalSubmitted}</div>
-                <div className="text-[11px] text-slate-500 mt-1">Saved in Neon DB (PostgreSQL)</div>
+                <div className="text-[11px] text-slate-500 mt-1">Saved medical claims</div>
               </div>
 
               <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-md">
@@ -190,9 +182,6 @@ export default function HomePage() {
                   <div>
                     <h2 className="text-base font-bold text-white flex items-center gap-2">
                       <span>📂 Previous Forms &amp; Saved Drafts</span>
-                      <span className="text-[10px] font-mono bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full">
-                        Neon DB
-                      </span>
                     </h2>
                     <p className="text-xs text-slate-400">Click any claim to view, edit, or print the 5-page PDF</p>
                   </div>
@@ -207,7 +196,7 @@ export default function HomePage() {
 
                 {loadingClaims ? (
                   <div className="p-8 bg-slate-900/40 rounded-2xl border border-slate-800 text-center text-xs text-slate-500 animate-pulse">
-                    Loading claims from Neon DB...
+                    Loading claims...
                   </div>
                 ) : claims.length === 0 ? (
                   <div className="p-10 bg-slate-900/40 rounded-2xl border border-slate-800 text-center space-y-3">

@@ -89,7 +89,7 @@ export function createDefaultProfileFromGovEmail(parsed: ParsedGovEmail, customN
   return {
     employeeName: fullName,
     employeeId: empId,
-    employeeCode: `EC-${empId}`,
+    employeeCode: empId,
     designation: 'Senior Section Officer',
     cardNo: `DGEHS-DEL-${empId}`,
     placeOfIssue: 'Dispensary Gulabi Bagh, Delhi',
@@ -101,7 +101,7 @@ export function createDefaultProfileFromGovEmail(parsed: ParsedGovEmail, customN
     phoneRes: '011-27459812',
     email: parsed.email,
     basicPay: '78800',
-    payLevel: 'Level 10 (Pay Matrix 56100-177500)',
+    payLevel: 'Level 10',
     entitlement: 'Pvt.',
     status: 'Govt. Servant',
     bankName: 'State Bank of India',
